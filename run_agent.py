@@ -16,18 +16,18 @@ def q_learning_cycle(N, n_timesteps, env_settings, qlearning_settings, plot=Fals
     state = env.reset()
     t = 0
     while t < n_timesteps:
-        for i in range(N):
+        #for i in range(N):
 
-            action = agent.epsgreedy_action_selection(state, i)
-            next_state,reward,done = env.step(action)
-            #costs.append(cost)
-            rewards[i,t] = reward
-            agent.update(i, state,action,reward,next_state)
+        actions = agent.epsgreedy_action_selection(state)
+        next_state,reward,done = env.step(actions)
+        #costs.append(cost)
+        #rewards[i,t] = reward
+        agent.update(state,actions,reward,next_state)
 
-            if done:
-                state=env.reset()
-            else:
-                state=next_state
+        if done:
+            state=env.reset()
+        else:
+            state=next_state
 
         t+=1
 
@@ -43,11 +43,17 @@ def q_learning_cycle(N, n_timesteps, env_settings, qlearning_settings, plot=Fals
 
 def test():
     
-    n_timesteps = 50000
+    n_timesteps = 100
     gamma = 1.0
     learning_rate = 0.01
-    k = 8
-    N = 10
+    k_a = 8
+    k_s = 100
+    N = 3
+    dim = 2
+    L = 10
+    periodic = False
+    v0 = 1
+    R =  1
 
     # Exploration
     #policy = 'egreedy' # 'egreedy' or 'softmax' 
@@ -61,18 +67,19 @@ def test():
 
 
     # environment settings
-    env_settings = {"dim":2,
+    env_settings = {"dim":dim,
                     "N":N,
-                    "L":10,
-                    "periodic": False,
-                    "v0": 1,
-                    "R": 1,
-                    "k": k
+                    "L":L,
+                    "periodic": periodic,
+                    "v0": v0,
+                    "R": R,
+                    "k_a": k_a,
+                    "k_s": k_s
                     }
 
     # qlearning settings
-    qlearning_settings = {"S": k,
-                        "A": k,
+    qlearning_settings = {"S": k_s,
+                        "A": k_a,
                         "learning_rate": learning_rate,
                         "gamma": gamma,
                         "epsilon": epsilon,
