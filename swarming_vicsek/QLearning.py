@@ -47,9 +47,8 @@ class QLearning:
             # reward = -abs(observations[i])
 
             G_t = reward + self.gamma*np.max(self.Q_table[i, next_obs_index,:])
-            Q_value = self.Q_table[i, obs_index,int(actions[i])] + self.learning_rate*(G_t-self.Q_table[i, obs_index,int(actions[i])])
-            # print(f"{Q_value=}")
-            self.Q_table[i,obs_index, int(actions[i])] = self.Q_table[i, obs_index,int(actions[i])] + self.learning_rate*(G_t-self.Q_table[i, obs_index,int(actions[i])])
+
+            self.Q_table[i,obs_index, int(actions[i])] = self.Q_table[i, obs_index,int(actions[i])] + self.learning_rate * (G_t - self.Q_table[i, obs_index,int(actions[i])])
 
 
 

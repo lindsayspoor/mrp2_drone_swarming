@@ -31,8 +31,10 @@ class EnvironmentDrones:
         positions = np.zeros((self.N, self.dim))
         for i in range(self.N):
             for j in range(self.dim):
-                positions[i,j] = np.random.uniform(-1,1)*0.5*self.L # centre of box is (0,0), box has x and y limitis of -L/2, L/2
+                positions[i,j] = np.random.uniform(-1,1)*(self.L/2) # centre of box is (0,0), box has x and y limitis of -L/2, L/2
         
+        if self.periodic:
+            positions = ((positions + (self.L/2)) % self.L)- (self.L/2)
 
         return positions
 
@@ -56,7 +58,7 @@ class EnvironmentDrones:
             velocities[:,0] = np.cos(direction_angles)
             velocities[:,1] = np.sin(direction_angles)
 
-        #print(f"{np.linalg.norm(velocities,axis=1)}")
+
 
         return velocities
 
@@ -127,6 +129,9 @@ class EnvironmentDrones:
 
         self.positions += self.v0*self.velocities
 
+        if self.periodic:
+            positions = ((positions + (self.L/2)) % self.L)- (self.L/2)
+
         return self.positions
 
 
@@ -139,6 +144,7 @@ class EnvironmentDrones:
             self.velocities[i,0] = (self.velocities[i,0]*np.cos(angle) - self.velocities[i,1]*np.sin(angle))
             self.velocities[i,1] = self.velocities[i,0]*np.sin(angle) + self.velocities[i,1]*np.cos(angle)
 
+        # normalize the velocities
         self.velocities[i,:] = self.velocities[i,:] / np.linalg.norm(self.velocities[i,:])
 
 
@@ -167,9 +173,10 @@ class EnvironmentDrones:
     def alignment_cost(self):
         '''The alignment of the drones is defined by the order parameter of the system.'''
         
-        phi_t = (1/self.N)*np.linalg.norm(np.sum(self.velocities, axis=0), axis=0)
+        phi_t = (1/self.N)*np.linalg.norm(np.sum(self.velocities, axis=0), axis=0) # order parameter
 
         self.alignment_costs.append(phi_t)
+
         return phi_t
     
 
@@ -180,7 +187,7 @@ class EnvironmentDrones:
 
     def cost_function(self):
 
-        total_cost = -self.alignment_cost() #-self.compactness_cost()
+        total_cost = -self.alignment_cost() # -self.compactness_cost()
 
         return total_cost
 
@@ -192,7 +199,6 @@ class EnvironmentDrones:
         for i in range(self.N):
 
             angle = self.action_angles[int(actions[i])]
-
 
             self.velocities = self.update_velocities(i, angle)
             self.directions = self.update_directions(i)
@@ -207,7 +213,8 @@ class EnvironmentDrones:
 
 
         # the system gets a collective reward because they have a collective goal
-        reward = (-self.cost_function())*2-1
+        # TODO: revise this reward system. This rewad system is collective rewarding, is individual rewarding better?
+        reward = (-self.cost_function()) * 2 - 1 # cost gets shifted from range (0,1) to range (-1,1) such that perfect alignment does not result in 0 for Q-update
 
 
         self.counter += 1
