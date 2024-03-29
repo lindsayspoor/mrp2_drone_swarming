@@ -2,6 +2,7 @@ import numpy as np
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
+import matplotlib.pyplot as plt
 
 
 
@@ -35,8 +36,10 @@ class Env_Task1(gym.Env):
         self.counter = 0 # updates each step to count what timestep we are in
         self.done = False
         self.truncated = False
+        self.collective_reward = 0
 
-        self.action_space = spaces.MultiBinary([self.N, self.k_a]) # for each agent there are k_a possible actions to choose from, selects for all N agents the k'th index for the action angles
+        #self.action_space = spaces.MultiBinary([self.N, self.k_a]) # for each agent there are k_a possible actions to choose from, selects for all N agents the k'th index for the action angles
+        self.action_space = spaces.Discrete(self.N*self.k_a) # for each agent there are k_a possible actions to choose from, selects for all N agents the k'th index for the action angles
         # Example for using image as input (channel-first; channel-last also works):
         self.observation_space = spaces.MultiBinary([self.L, self.L]) # each cell can occupy at the most one drone, 0 =  no drone, 1 = drone occupation
 
@@ -45,6 +48,7 @@ class Env_Task1(gym.Env):
         self.initialize_grid()
         
         self.drone_grid_positions = np.zeros((self.L, self.L))
+        self.drone_positions_memory = []
         self.initialize_drones()
 
 
@@ -70,6 +74,8 @@ class Env_Task1(gym.Env):
         for i in range(self.N):
             self.drone_grid_positions[self.grid_A_positions[self.drone_grid_indices[i]][0],self.grid_A_positions[self.drone_grid_indices[i]][1]] = 1
         
+            self.drone_positions_memory.append([self.grid_A_positions[self.drone_grid_indices[i]][0],self.grid_A_positions[self.drone_grid_indices[i]][1]])
+
         self.drone_directions = np.random.choice(self.direction_angles, size=self.N)
         self.drone_velocities = self.compute_velocities(self.drone_directions)
         
@@ -153,11 +159,18 @@ class Env_Task1(gym.Env):
 
     def step(self, actions):
 
+        actions = actions.reshape((self.N, self.k_a))
+
+        self.collective_reward = 0
+
         # compute turning angles from given actions
         if self.counter == self.max_timesteps:
-            return self.drone_grid_positions, 
+            # self.collective_reward = 0
+            self.counter = 0
+            self.truncated = True
+            return self.drone_grid_positions, self.collective_reward, self.done, self.truncated, {"max steps reached"}
 
-        collective_reward = 0
+        
 
         for i in range(self.N):
             new_angles = self.compute_angles(i, actions)
@@ -172,23 +185,102 @@ class Env_Task1(gym.Env):
             reward_index = np.argwhere(self.drone_grid_positions==1)[0]
             reward_drone_i = self.reward_grid[reward_index[0],reward_index[1]]
 
-            collective_reward += reward_drone_i
+            self.collective_reward += reward_drone_i
 
         self.counter += 1
 
-
-        return self.drone_grid_positions, collective_reward, 
+        return self.drone_grid_positions, self.collective_reward, self.done, self.truncated, {"continue"}
         #return observation, reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):
-        ...
-        return observation, info
+        
+        self.collective_reward = 0
+        self.done = False
+        self.truncated = False
+        self.counter = 0
+
+        self.initialize_grid()
+        
+        self.drone_grid_positions = np.zeros((self.L, self.L))
+        self.initialize_drones()
+
+
+        return self.drone_grid_positions, None
+
+    def draw_image(self):
+        fig, ax = plt.subplots(figsize = (10,10))
+        a=1/(self.L)
+
+
+        patch_A = plt.Polygon([[a*(self.origin_Ax), a*(self.origin_Ay)], [a*(self.origin_Ax+La_x), a*(self.origin_Ay)], [a*(self.origin_Ax+La_x), a*(self.origin_Ay+La_y)], [a*(self.origin_Ax), a*(self.origin_Ay+La_y)] ], fc = 'lightblue')
+        ax.add_patch(patch_A)
+
+        patch_B = plt.Polygon([[a*(self.origin_Bx), a*(self.origin_By)], [a*(self.origin_Bx+Lb_x), a*(self.origin_By)], [a*(self.origin_Bx+Lb_x), a*(self.origin_By+Lb_y)], [a*(self.origin_Bx), a*(self.origin_By+Lb_y)] ], fc = 'lightgreen')
+        ax.add_patch(patch_B)
+
+
+        # Draw grid
+        for x in range(self.L):
+            for y in range(self.L):
+                pos=(a*x, a*y)
+                width=a
+                lattice = plt.Rectangle( pos, width, width, fc='none', ec='black', linewidth=0.2 )
+                ax.add_patch(lattice)
+
+                if self.drone_grid_positions[x,y] == 1:
+                    patch_drone = plt.Rectangle(pos, width, width, fc = 'darkblue', zorder = 10)
+                    ax.add_patch(patch_drone)
+
+
+
+
+        ax.set_aspect(1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        plt.axis('off')
 
     def render(self):
-        ...
+        
+        fig, ax = plt.subplots(figsize = (10,10))
+        a=1/(self.L)
+
+
+        patch_A = plt.Polygon([[a*(self.origin_Ax), a*(self.origin_Ay)], [a*(self.origin_Ax+La_x), a*(self.origin_Ay)], [a*(self.origin_Ax+La_x), a*(self.origin_Ay+La_y)], [a*(self.origin_Ax), a*(self.origin_Ay+La_y)] ], fc = 'lightblue')
+        ax.add_patch(patch_A)
+
+        patch_B = plt.Polygon([[a*(self.origin_Bx), a*(self.origin_By)], [a*(self.origin_Bx+Lb_x), a*(self.origin_By)], [a*(self.origin_Bx+Lb_x), a*(self.origin_By+Lb_y)], [a*(self.origin_Bx), a*(self.origin_By+Lb_y)] ], fc = 'lightgreen')
+        ax.add_patch(patch_B)
+
+
+        # Draw grid
+        for x in range(self.L):
+            for y in range(self.L):
+                pos=(a*x, a*y)
+                width=a
+                lattice = plt.Rectangle( pos, width, width, fc='none', ec='black', linewidth=0.2 )
+                ax.add_patch(lattice)
+
+                if self.drone_grid_positions[x,y] == 1:
+                    patch_drone = plt.Rectangle(pos, width, width, fc = 'darkblue', zorder = 10)
+                    ax.add_patch(patch_drone)
+
+
+
+
+        ax.set_aspect(1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        plt.axis('off')
+        plt.show()
+
+        #plt.pause(0.1)
+
+
+
+
 
     def close(self):
-        ...
+        self.drone_grid_positions = None
 
 if __name__ == "__main__":
 
@@ -209,7 +301,7 @@ if __name__ == "__main__":
     step_reward = -1
     goal_reward = 300
 
-    n_timesteps = 10
+    n_timesteps = 100
 
     settings = {"N": N,
                 "k_a": k_a,
@@ -235,12 +327,18 @@ if __name__ == "__main__":
 
     #env.reset()
 
-    #env.render()
-
+    env.render()
+    
+    '''
     for i in range(n_timesteps):
 
         actions = np.array([[0,1,0,0,0,0],[0,0,1,0,0,0]])
         env.step(actions)
 
-        env.render()
+        
+        if (i % 30) == 0:
 
+            env.render()
+        
+    #env.render()
+    '''
