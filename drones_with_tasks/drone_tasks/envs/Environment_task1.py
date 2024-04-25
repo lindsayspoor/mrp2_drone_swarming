@@ -17,7 +17,7 @@ class Env_Task1(gym.Env):
 
     def __init__(self, settings, device):
         super().__init__()
-
+        self.device = device
         self.N = settings["N"] # N is the numer of drones the swarm consists of
         self.k_a = settings["k_a"] # k_a equally spaced angles for the actions in range [-theta_max, theta_max]
         self.k_s = settings["k_s"] # k_s equally spaced angles for the direction angle in the range [-pi, pi)
@@ -229,8 +229,8 @@ class Env_Task1(gym.Env):
         '''Update the directions of the drones according to their velocities.'''
 
         # print(f"the old direction was {self.drone_directions[i]}")
-        new_angle = self.find_nearest(self.direction_angles, np.arctan(velocities[i,1]/velocities[i,0]))
-        # new_angle = np.arctan(velocities[i,1]/velocities[i,0])
+        # new_angle = self.find_nearest(self.direction_angles, np.arctan(velocities[i,1]/velocities[i,0]))
+        new_angle = np.arctan(velocities[i,1]/velocities[i,0])
         
         self.drone_directions[i] = new_angle
 
@@ -298,30 +298,20 @@ class Env_Task1(gym.Env):
 
         return new_angles
         
-      
-    # def drone_dispersion_vector(self, i, positions):
-    #     '''Computes the dispersion vector of the i-th drone w.r.t. all other drones.
-    #     positions = drone x,y cartesian coordinates'''
+        
+    def drone_dispersion_vector(self, i, positions):
+        '''Computes the dispersion vector of the i-th drone w.r.t. all other drones.
+        positions = drone x,y cartesian coordinates'''
 
-    #     c = np.zeros((2))
-    #     for j in range(self.N):
-    #         if j != i:
-    #             if np.linalg.norm(positions[i,:] - positions[j,:]) < 1:
-    #                 c -= (positions[i,:] - positions[j,:])
+        c = np.zeros((2))
+        for j in range(self.N):
+            if j != i:
+                if np.linalg.norm(positions[i,:] - positions[j,:]) < 1:
+                    c -= (positions[i,:] - positions[j,:])
 
-    #     # print(f"the dispersion c={c}")
+        # print(f"the dispersion c={c}")
 
-    #     return c
-
-    # def drone_dispersion_reward(self, i, positions):
-    #     '''Computes the dispersion reward in order to prevent the drones from flying into each other.'''
-
-    #     for j in range(self.N):
-    #         if j != i:
-
-
-    #     dispersion_reward_i = 
-
+        return c
 
 
     def update_drone_velocities(self, i, angle):

@@ -15,17 +15,18 @@ class Env_Task1(gym.Env):
 
     metadata = {"render_modes": ["human"], "render_fps": 30}
 
-    def __init__(self, settings, device):
+    def __init__(self, settings):
         super().__init__()
 
         self.N = settings["N"] # N is the numer of drones the swarm consists of
         self.k_a = settings["k_a"] # k_a equally spaced angles for the actions in range [-theta_max, theta_max]
         self.k_s = settings["k_s"] # k_s equally spaced angles for the direction angle in the range [-pi, pi)
+        self.k_l = settings["k_l"] # k_l equally spaced observation regions in the range [-pi, pi)
+        self.M = settings["M"] # M is the maximum occupation number per observation region
         self.theta_max = settings["theta_max"]
         self.boundary_width = settings["boundary_width"] # number of grid elements the boundary width consists of
         self.L = settings["L"] # size of grid of total enviroment (LxL)
         self.Rv = settings["Rv"] # visibility Radius for each drone
-        #self.l = settings["l"] # size of each grid cell
         self.La_x = settings["La_x"] # x-size of area A
         self.La_y = settings["La_y"] # y-size of area A
         self.Lb_x = settings["Lb_x"] # x-size of area B
@@ -40,59 +41,31 @@ class Env_Task1(gym.Env):
 
         self.action_angles = np.linspace(-self.theta_max, self.theta_max, self.k_a)
         self.direction_angles = np.linspace(-np.pi+(2*np.pi/self.k_s), np.pi, self.k_s)
-
-        # print(f"{self.action_angles=}")
-        # print(f"{self.direction_angles=}")
-
+        self.obs_regions = np.linspace(-np.pi+(2*np.pi/self.k_s), np.pi, self.k_l)
+        # print(f"{self.obs_regions[0]=}")
+        # print(f"{self.obs_regions[self.k_l]=}")
+        # exit()
         self.counter = 0 # updates each step to count what timestep we are in
         self.done = False
         self.truncated = False
         self.collective_reward = 0
-        action_array = np.zeros(self.N)
-        action_array[:] = self.k_a
-        self.action_space = spaces.MultiDiscrete(action_array) # for the i-th drone there are k_a possible actions to choose from
-        # self.observation_space = spaces.MultiBinary([self.N, self.L, self.L, self.k_s]) # observation space is (N, L, L, k_s), for each j-th drone (j!=i and within the visibility range of the i-th drone) the Lx, Ly grid coordinates of all N-1 other agents and the k_s direction angle
-        # self.observation_space = spaces.Box(low=np.array([]))
-        # self.observation_space = spaces.Tuple((spaces.MultiBinary(self.N), spaces.Box(low=np.array([0, 0, -np.pi+(2*np.pi/self.k_s)]), high=np.array([self.L,self.L,np.pi]), dtype=np.float32)))
-        # print(f"{self.observation_space.sample()=}")
-        # self.observation_space = spaces.Tuple
 
-        # low = np.zeros((self.N,3))
-        low = np.zeros((self.N,self.N,3))
-        # low[:,2] = -np.pi+(2*np.pi/self.k_s)
-        low[:,:,2] = -np.pi+(2*np.pi/self.k_s)
-        # high = np.zeros((self.N, 3))
-        high = np.zeros((self.N, self.N, 3))
-        # high[:,0:2] = self.L
-        high[:,:,0:2] = self.L
-        # high[:,2] = np.pi
-        high[:,:,2] = np.pi
-        # obs_space = spaces.Box(low=np.array([low]*self.N), high=np.array([high]*self.N), dtype=np.float32)
-        obs_space = spaces.Box(low=low, high=high, dtype=np.float32)
-        self.observation_space = obs_space
-        # self.observation_space = spaces.Tuple([obs_space] * self.N)
-        # self.observation_space = spaces.Dict({str(i): obs_space for i in range(self.N)})
-        # self.observation_space = spaces.Box(low=[0,0,0], high=[1, 1, np.pi], shape=(self.N, self.N, 3), dtype=np.float32)
-        print(self.observation_space.sample())
+        self.action_space = spaces.MultiDiscrete([self.k_a] * self.N) # for all N drones, k_a possible action angles to choose from
+        self.observation_space = spaces.MultiDiscrete([[[self.M] * self.k_s] * (self.k_l-1)] * self.N)
+        # print(np.array([self.observation_space[0].shape, self.observation_space[1].shape]))
+        # print(np.sum(np.array([self.observation_space[0].shape, self.observation_space[1].shape])))
         # exit()
-        # initialize grid
         self.initialize_grid()
         
-        
+        self.reset()
 
-        self.state = np.zeros((self.N, 3)) # N drones, Lx coordinate, Ly coordinate, k_s angle
-
-        self.initialize_drones()
-
-
-        # construct rewarding of grid
-        self.initialize_rewards()
 
     def seed(self, seed=None):
         self.np_random, seed1 = seeding.np_random(seed)
         # Derive a random seed.
         seed2 = seeding.hash_seed(seed1 + 1) % 2**32
         return [seed1, seed2]
+
 
     def reset(self, **kwargs):
         '''Reset function to reset drone states, observations, reward grid back to the initial conditions.'''
@@ -103,41 +76,73 @@ class Env_Task1(gym.Env):
         self.counter = 0
         self.collective_reward = 0
 
+        self.state = np.zeros((self.N, 3)) # N drones, x coordinate, y coordinate, k_s angle
+
         self.initialize_drones()
 
         self.initialize_rewards()
 
+
         obs_N = self.get_obs()
-        info_N = {}#dict(None)
+        info_N = {}
+        # print(f"{obs_N=}")
 
         return obs_N, info_N
 
 
+
+    def classify_drones_in_bins(self, i, connected_drones_i):
+        '''Classifies all drones within range Rv of the i-th drone in k_l positional
+        bins and within positional bins k_l of the i-th drone in k_s directional angle bins.'''
+
+        drones_in_kl = [] # kl listst with in each list a histogram containing the counts of ks direction angles
+
+        for k in range(self.k_l-1): # for each k_l-th vision section of drone i, find connected drones and their direction angles
+            direction_hist = np.zeros(self.k_s)
+            if len(connected_drones_i) == 0:
+                drones_in_kl.append(list(direction_hist))
+                continue
+
+            for j in connected_drones_i:
+                if (self.state[j,0]-self.state[i,0]) == 0:
+                    theta_ij = 0
+                else:
+                    theta_ij = np.arctan((self.state[j,1]-self.state[i,1]) / (self.state[j,0]-self.state[i,0]))
+
+                if theta_ij >= self.obs_regions[k] and theta_ij < self.obs_regions[k+1]:
+
+                    dir_drone_j = self.state[j,2]
+
+                    index_dir_drone_j = list(self.direction_angles).index(dir_drone_j)
+                    direction_hist[index_dir_drone_j] += 1
+
+                    connected_drones_i.pop(connected_drones_i.index(j))
+
+            drones_in_kl.append(list(direction_hist))
+
+
+
+        return drones_in_kl
+
+
+
     def get_obs(self):
 
-        obs_N=[]
+
+        observations_N = []
+
         for i in range(self.N):
 
-            obs_i = np.zeros((self.N, 3))
-
+            # find drones within the range Rv of drone i
             connected_drones_i = self.find_connected_drones(i)
-            # obs_i[i,int(self.state[i,0]), int(self.state[i,1]), int(list(self.direction_angles).index(self.state[i,2]))] = 1
-            obs_i[i,:] = self.state[i,:]
-            for j in connected_drones_i:
-                obs_i[j,:] = self.state[j,:]
-        
-            # drone_connections.append(connected_drones_i)
-            # for j in connected_drones_i:
-                # obs_i[j,int(self.state[j,0]), int(self.state[j,1]), int(list(self.direction_angles).index(self.state[j,2]))] = 1
-            # print(f"{obs_i[i, :, :, :]}=")
-            # print(self.state)
-            # print(np.argwhere(obs_i==1))
 
 
-            obs_N.append(obs_i)
+            obs_i = self.classify_drones_in_bins(i, connected_drones_i)
 
-        # print(np.asarray(obs_N).flatten)
-        return np.asarray(obs_N, dtype=np.float32)
+            observations_N.append(np.array(obs_i).flatten())
+
+        return observations_N
+
 
     def initialize_grid(self):
 
@@ -150,36 +155,29 @@ class Env_Task1(gym.Env):
     def initialize_drones(self):
         '''Initialize drone positions within area A.'''
 
-        self.drone_grid_indices = np.random.choice(np.arange(self.La_x*self.La_y), size=self.N, replace=False) # randomly choose initial grid locations for all N drones in area A
+        drone_grid_indices = np.random.choice(np.arange(self.La_x*self.La_y), size=self.N, replace=False) # randomly choose initial grid locations for all N drones in area A
         # by initialising the drones on the grid positions and setting replace = False, all drones will never be initialised onto the same grid cell
+
+        self.drone_directions = np.random.choice(self.direction_angles, size = self.N) # choose random initial directions for all drones
+        self.state[:,2] = self.drone_directions
+
 
         self.drone_velocities = np.zeros((self.N,2))
 
-        self.drone_directions = np.random.choice(self.direction_angles, size = self.N) # choose random initial directions for all drones
-
-        # print(f"{self.drone_directions=}")
-
-
         for i in range(self.N):
-            # self.drone_grid_positions[self.grid_A_positions[self.drone_grid_indices[i]][0],self.grid_A_positions[self.drone_grid_indices[i]][1]] = 1
-            self.state[i, 0:2] =  [self.grid_A_positions[self.drone_grid_indices[i]][0],self.grid_A_positions[self.drone_grid_indices[i]][1]]
-
-            #self.drone_grid_positions[i,:] = self.state[i,0:2]
-            self.state[i, 2] = self.drone_directions[i]
-
+            self.state[i, 0:2] =  [self.grid_A_positions[drone_grid_indices[i]][0],self.grid_A_positions[drone_grid_indices[i]][1]]
+            
             self.drone_velocities[i,:] = self.compute_velocities(self.drone_directions[i]) # compute the initial velocity vecotr for all drones based on the given direction angle
 
-        # print(f"initial drone positions are {self.state[:,0:2]}")
-        # print(f"initial drone directions are {self.state[:,2]}")
-        # print(f"initial drone velocities are {self.drone_velocities}")
 
 
     def reward_function_linear(self):
         '''Constructs linearly increasing reward function to grid.'''
-        for i in range(self.boundary_width, self.L-self.boundary_width):
-            self.reward_grid[i,:] = i*self.step_reward
 
-        # print(self.reward_grid)
+        for i in range(self.boundary_width, self.L - self.boundary_width):
+            self.reward_grid[i,:] = i * self.step_reward
+
+
         return self.reward_grid
 
 
@@ -189,19 +187,17 @@ class Env_Task1(gym.Env):
 
         self.reward_grid = np.zeros((self.L,self.L))
 
-
-        # self.reward_grid[:,:] = self.step_reward
         self.reward_grid = self.reward_function_linear()
-        # print(f"{self.reward_grid=}")
-        self.reward_grid[self.grid_B_positions[0][0]:(self.grid_B_positions[-1][0]+1), self.grid_B_positions[0][1]:(self.grid_B_positions[-1][1]+1)] = self.goal_reward
-        # print(f"{self.reward_grid=}")
-        # define boundaries by assigning a very large negative reward to these grid positions
-        self.reward_grid[0, :] = -10
-        self.reward_grid[:,0] = -10
-        self.reward_grid[-1,:] = -10
-        self.reward_grid[:,-1] = -10
 
-        # print(f"{self.reward_grid=}")
+        self.reward_grid[self.grid_B_positions[0][0]:(self.grid_B_positions[-1][0]+1), self.grid_B_positions[0][1]:(self.grid_B_positions[-1][1]+1)] = self.goal_reward
+
+        # define boundaries by assigning a very large negative reward to these grid positions
+        self.reward_grid[0, :] = -100
+        self.reward_grid[:,0] = -100
+        self.reward_grid[-1,:] = -100
+        self.reward_grid[:,-1] = -100
+
+
 
 
 
@@ -225,35 +221,38 @@ class Env_Task1(gym.Env):
 
         return array[idx]
 
-    def update_drone_directions(self, i, velocities):
+
+    def update_drone_directions(self, i):
         '''Update the directions of the drones according to their velocities.'''
 
-        # print(f"the old direction was {self.drone_directions[i]}")
-        new_angle = self.find_nearest(self.direction_angles, np.arctan(velocities[i,1]/velocities[i,0]))
-        # new_angle = np.arctan(velocities[i,1]/velocities[i,0])
+        if self.drone_velocities[i,0] == 0:
+            new_angle = self.find_nearest(self.direction_angles, 0)
+        else:
+            new_angle = self.find_nearest(self.direction_angles, np.arctan(self.drone_velocities[i,1]/self.drone_velocities[i,0]))
+
         
         self.drone_directions[i] = new_angle
 
-        # print(f"the new direction is {self.drone_directions[i]}")
 
 
-    def assign_rewards(self,i,positions):
+    def positional_rewards(self,i,positions):
         '''Checks whether the new position update results in a drone flying out of the boundary. Game is terminated in this case.'''
-        if positions[i,0] <= self.boundary_width or positions[i,0] >= (self.L-self.boundary_width):
-            reward = -10
-            done = True
-            return reward, done
         
-        if positions[i,1] <= self.boundary_width or positions[i,1] >= (self.L-self.boundary_width):
-            reward = -10
-            done = True
-            return reward, done
+        if positions[i,0] <= self.boundary_width or positions[i,0] >= (self.L-self.boundary_width) or positions[i,1] <= self.boundary_width or positions[i,1] >= (self.L-self.boundary_width):
+            reward = -100
+            # done = True
+            return reward#, done
+        
+
 
         else:
-            reward_positions = self.cast_to_grid(i, positions)
+
+            copied_positions = np.array(positions).copy()
+            reward_positions = self.cast_to_grid(i, copied_positions)
+
             reward = self.reward_grid[int(reward_positions[i,0]), int(reward_positions[i,1])]
-            done = False
-            return reward, done
+            # done = False
+            return reward#, done
 
 
 
@@ -267,21 +266,11 @@ class Env_Task1(gym.Env):
         return positions
     
 
-    def update_drone_positions(self, i, velocities):
+    def update_drone_positions(self, i):
         '''Update the position of the ith drone.'''
 
+        new_pos = self.state[i,0:2] + self.drone_velocities[i,:]
 
-        # print(f"the old positions are {self.state[i,0:2]}")
-        new_pos = self.state[i,0:2] + velocities[i,:]
-
-        # print(f"the new positions are {new_pos}")
-
-
-
-        # new_pos[0] = new_pos[0] - (new_pos[0] % 1)
-        # new_pos[1] = new_pos[1] - (new_pos[1] % 1)
-
-        # print(f"the new positions are {new_pos}")
 
         self.state[i,0:2] = new_pos
 
@@ -298,67 +287,81 @@ class Env_Task1(gym.Env):
 
         return new_angles
         
-      
-    # def drone_dispersion_vector(self, i, positions):
-    #     '''Computes the dispersion vector of the i-th drone w.r.t. all other drones.
-    #     positions = drone x,y cartesian coordinates'''
 
-    #     c = np.zeros((2))
-    #     for j in range(self.N):
-    #         if j != i:
-    #             if np.linalg.norm(positions[i,:] - positions[j,:]) < 1:
-    #                 c -= (positions[i,:] - positions[j,:])
-
-    #     # print(f"the dispersion c={c}")
-
-    #     return c
-
-    # def drone_dispersion_reward(self, i, positions):
-    #     '''Computes the dispersion reward in order to prevent the drones from flying into each other.'''
-
-    #     for j in range(self.N):
-    #         if j != i:
-
-
-    #     dispersion_reward_i = 
 
 
 
     def update_drone_velocities(self, i, angle):
         '''Update the velocities of the i-th drone given the rotation angle.'''
 
-        # print(f"the old velocities are {self.drone_velocities[i,:]}")
-        # print(f"rotating at angle {angle}")
 
-        c = self.drone_dispersion_vector(i, self.state[:,0:2])
 
-        self.drone_velocities[i,0] = self.drone_velocities[i,0]*np.cos(angle) - self.drone_velocities[i,1]*np.sin(angle) + c[0]
-        self.drone_velocities[i,1] = self.drone_velocities[i,0]*np.sin(angle) + self.drone_velocities[i,1]*np.cos(angle) + c[1]
+
+        self.drone_velocities[i,0] = self.drone_velocities[i,0]*np.cos(angle) - self.drone_velocities[i,1]*np.sin(angle) 
+        self.drone_velocities[i,1] = self.drone_velocities[i,0]*np.sin(angle) + self.drone_velocities[i,1]*np.cos(angle) 
 
         # normalize the velocities
         self.drone_velocities[i,:] = self.drone_velocities[i,:] / np.linalg.norm(self.drone_velocities[i,:])
 
-        # print(f"the new velocities are {self.drone_velocities[i,:]}")
+
 
 
     def find_connected_drones(self, i):
         '''For the i-th drone find the other drones that are within the connectivity range Rv.'''
 
-        pos_i = self.state[i,0:2]
-
-        range_x = pos_i[0]+self.Rv
-        range_y = pos_i[1]+self.Rv
-
         drones_in_range=[]
 
         for j in range(self.N):
             if j != i:
-                if (self.state[j,0] < self.state[i,0]+self.Rv) and (self.state[j,0] > self.state[i,0]-self.Rv) and (self.state[j,1] < self.state[i,1]+self.Rv) and (self.state[j,1] > self.state[i,1]-self.Rv):
+                if (self.state[j,0] < self.state[i,0] + self.Rv) and (self.state[j,0] > self.state[i,0] - self.Rv) and (self.state[j,1] < self.state[i,1] + self.Rv) and (self.state[j,1] > self.state[i,1] - self.Rv):
                     drones_in_range.append(j)
 
-        # print(f"drones in range of the {i}th drone are {drones_in_range}")
-
         return drones_in_range
+    
+
+
+    def collision_rewards(self, i, positions):
+        '''Assign the collision rewards to the i-th drone.'''
+
+        connected_drones_i = self.find_connected_drones(i)
+
+
+        collision_reward_i = 0
+        for j in connected_drones_i:
+
+            if np.sqrt((positions[j,0]-positions[i,0])**2+(positions[j,1]-positions[i,1])**2) < 1:
+                collision_reward_i -= (1 - np.sqrt((positions[j,0]-positions[i,0])**2+(positions[j,1]-positions[i,1])**2))
+
+
+        return collision_reward_i
+    
+
+    def get_rewards(self):
+        '''Assigns individual rewards to each drone.'''
+
+        reward_N = []
+        # reward = self.reward_grid[int(self.state[i,0]), int(self.state[i,1])]
+        new_positions = self.state[:,0:2].copy()
+
+
+        for i in range(self.N):
+
+            position_reward_i = self.positional_rewards(i, new_positions)
+
+
+            collision_reward_i = self.collision_rewards(i, new_positions)
+
+            # TODO: add another term for the swarming here
+
+            reward_i = position_reward_i + collision_reward_i
+
+            
+            reward_N.append(reward_i)
+
+            if position_reward_i == self.goal_reward:
+                self.reward_grid[int(self.state[i,0]), int(self.state[i,1])] = 0.5*self.goal_reward
+
+        return reward_N
 
     
     def step(self, actions):
@@ -366,72 +369,46 @@ class Env_Task1(gym.Env):
 
         obs_N = []
         reward_N = []
-        done_N = []
+        # done_N = []
         info_N = {'N':[]}
 
-        # first let all drones do their actions and update their positions, directions and velocities accordingly
-        for i in range(self.N):
-            # print(f"updating drone {i}")
-            # print(f"action is {actions}")
 
-            # action_i = actions[(i*self.N):(i*self.N+self.N)]
-            # print(f"{action_i=}")
+        # first let all drones do their actions and update their positions, directions accordingly
+        for i in range(self.N):
 
             action_angle = self.action_angles[actions[i]]
 
             self.update_drone_velocities(i, action_angle)
 
-            self.update_drone_directions(i, self.drone_velocities)
+            self.update_drone_directions(i)
 
             self.state[i,2] = self.drone_directions[i]
             
-            self.update_drone_positions(i, self.drone_velocities)
+            self.update_drone_positions(i)
+            
 
-            # reward = self.reward_grid[int(self.state[i,0]), int(self.state[i,1])]
-            new_positions = self.state[:,0:2].copy()
-            # print(f"{new_positions=}")
-            reward, self.done = self.assign_rewards(i, new_positions)
-            # print(f"{self.state[:,0:2]=}")
-            # print(f"the reward for drone {i} is {reward}")
-            reward_N.append(reward)
-
-            if reward == self.goal_reward:
-                self.reward_grid[int(self.state[i,0]), int(self.state[i,1])] = 0.5*self.goal_reward
 
 
         obs_N = self.get_obs()
-        # obs_N = np.asarray(obs_N).flatten
+
+        reward_N = self.get_rewards()
+
 
         collective_reward  = np.sum(reward_N)
-        reward_N = [collective_reward]*self.N
+        reward_N = [collective_reward] * self.N
 
         self.counter+=1
         if self.counter == self.max_timesteps:
-            # self.done = True
-            self.truncated = True
-        
+            self.done = True
 
-        # done_N = [self.done]*self.N
         info_N = {}
         trunc_N = False
 
-        # self.render()
-        # print(f"{obs_N=}")
+        done_N = [self.done] * self.N
 
-        return obs_N, float(collective_reward), self.done, self.truncated, info_N
+        return obs_N, reward_N, done_N, info_N
         
 
-                
-        # print(len(obs_N))
-
-        # self.observation_space = spaces.MultiBinary([self.N, self.L, self.L, self.k_s]) # observation space is (N, L, L, k_s), for each j-th drone (j!=i and within the visibility range of the i-th drone) the Lx, Ly grid coordinates of all N-1 other agents and the k_s direction angle
-
-
-            
-            
-
-        
-        # return obs_N, reward_N, done_N, info_N
 
 
 
@@ -517,8 +494,10 @@ class Env_Task1(gym.Env):
 if __name__ == "__main__":
 
     N = 2
+    M = N-1
     k_a = 5
     k_s = 16
+    k_l = 8
     theta_max = np.pi / 4
     boundary_width = 1
     Rv = 3
@@ -527,7 +506,7 @@ if __name__ == "__main__":
     La_y = 10
     Lb_x = 5
     Lb_y = 20
-    origin_Ax = 0 + boundary_width
+    origin_Ax = 1 + boundary_width
     origin_Ay = 5 + boundary_width
     origin_Bx = L - Lb_x - boundary_width
     origin_By = 0 + boundary_width
@@ -541,6 +520,8 @@ if __name__ == "__main__":
     settings = {"N": N,
                 "k_a": k_a,
                 "k_s": k_s,
+                "k_l": k_l,
+                "M": M,
                 "theta_max": theta_max,
                 "boundary_width": boundary_width,
                 "L": L,
@@ -559,26 +540,13 @@ if __name__ == "__main__":
                 }
     
     env = Env_Task1(settings=settings)
-    # print(env.grid_positions)
-    # env.render()
-    #print(np.argwhere(env.reward_grid==goal_reward)[:,0])
 
-
-    # for t in range(n_timesteps):
-    # actions = [1,0,2]
-    # env.step(actions)
-        # env.render()
-    #env.reset()
-    # update_drone_positions(self, i, velocities)
-    # env.render()
-    #positions = 
-    #env.update_drone_positions(self, i, positions, velocities)
-    # marl.make_env(Env_Task1)
     obs_N, info_N = env.reset()
     env.render()
     for i in range(30):
 
         actions = np.random.randint(0,k_a, size=N)
+
         obs_N, reward, done, trunc, info_N = env.step(actions)
         # print(f"{reward=}")
         env.render()
@@ -587,17 +555,3 @@ if __name__ == "__main__":
 
 
     
-    
-    '''
-    for i in range(n_timesteps):
-
-        actions = np.array([[0,1,0,0,0,0],[0,0,1,0,0,0]])
-        env.step(actions)
-
-        
-
-
-        env.render()
-        
-    #env.render()
-    '''
