@@ -21,7 +21,11 @@ if __name__ == '__main__':
     task = 'task1'
 
     N = 2
-    M = N-1
+    if N == 1:
+        M=1
+    else:
+        M=N-1
+    # M = N-1
     k_a = 5
     k_s = 16
     k_l = 8

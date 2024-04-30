@@ -41,9 +41,9 @@ class Env_Task1(gym.Env):
 
         self.action_angles = np.linspace(-self.theta_max, self.theta_max, self.k_a)
         self.direction_angles = np.linspace(-np.pi+(2*np.pi/self.k_s), np.pi, self.k_s)
-        self.obs_regions = np.linspace(-np.pi+(2*np.pi/self.k_s), np.pi, self.k_l)
-        # print(f"{self.obs_regions[0]=}")
-        # print(f"{self.obs_regions[self.k_l]=}")
+        # self.obs_regions = np.linspace(-np.pi+(2*np.pi/self.k_s), np.pi, self.k_l)
+        self.obs_regions = np.linspace(0, 2*np.pi, self.k_l)
+        # print(f"{self.obs_regions=}")
         # exit()
         self.counter = 0 # updates each step to count what timestep we are in
         self.done = False
@@ -51,13 +51,27 @@ class Env_Task1(gym.Env):
         self.collective_reward = 0
 
         self.action_space = spaces.MultiDiscrete([self.k_a] * self.N) # for all N drones, k_a possible action angles to choose from
-        self.observation_space = spaces.MultiDiscrete([[[self.M] * self.k_s] * (self.k_l-1)] * self.N)
+        # self.observation_space = spaces.MultiDiscrete([[[self.M] * self.k_s] * (self.k_l-1)] * self.N)
+        # self.observation_space = spaces.MultiDiscrete([[self.M] * (self.k_l-1)] * self.N) # for each drone we can observe a maximum of M=N-1 other drones per k_l segment (crowdedness)
         # print(np.array([self.observation_space[0].shape, self.observation_space[1].shape]))
+        low = np.zeros((self.k_l-1+3))
+        low[0:3] = [0,0,self.direction_angles[0]]
+        high = np.zeros((self.k_l-1+3))
+        high[0:3] = [self.L, self.L, self.direction_angles[-1]]
+        high[3:] = self.M
+        self.observation_space = spaces.Box(low = low, high=high, dtype = np.float64)
+        # print(f"{self.observation_space.sample()=}")
         # print(np.sum(np.array([self.observation_space[0].shape, self.observation_space[1].shape])))
         # exit()
         self.initialize_grid()
+
+        self.state = np.zeros((self.N, 3)) # N drones, x coordinate, y coordinate, k_s angle
+
+        self.initialize_drones()
+
+        self.initialize_rewards()
         
-        self.reset()
+        # self.reset()
 
 
     def seed(self, seed=None):
@@ -76,7 +90,7 @@ class Env_Task1(gym.Env):
         self.counter = 0
         self.collective_reward = 0
 
-        self.state = np.zeros((self.N, 3)) # N drones, x coordinate, y coordinate, k_s angle
+        # self.state = np.zeros((self.N, 3)) # N drones, x coordinate, y coordinate, k_s angle
 
         self.initialize_drones()
 
@@ -91,38 +105,40 @@ class Env_Task1(gym.Env):
 
 
 
+
+
     def classify_drones_in_bins(self, i, connected_drones_i):
         '''Classifies all drones within range Rv of the i-th drone in k_l positional
-        bins and within positional bins k_l of the i-th drone in k_s directional angle bins.'''
+        bins.'''
 
-        drones_in_kl = [] # kl listst with in each list a histogram containing the counts of ks direction angles
+        crowdedness_i = np.zeros((self.k_l-1))
+        for j in connected_drones_i:
+            if (self.state[j,0]-self.state[i,0]) > 0:
+                theta_ij = np.arctan((self.state[j,1]-self.state[i,1])/(self.state[j,0]-self.state[i,0]))
+            if (self.state[j,0]-self.state[i,0]) < 0:
+                theta_ij = np.arctan((self.state[j,1]-self.state[i,1])/(self.state[j,0]-self.state[i,0])) + np.pi
+            if (self.state[j,0]-self.state[i,0]) == 0 and (self.state[j,1]-self.state[i,1]) > 0:
+                theta_ij = np.pi/2
+            if (self.state[j,0]-self.state[i,0]) == 0 and (self.state[j,1]-self.state[i,1]) < 0:
+                theta_ij = (3*np.pi)/2
+            
+            theta_ij = theta_ij % (2*np.pi)
 
-        for k in range(self.k_l-1): # for each k_l-th vision section of drone i, find connected drones and their direction angles
-            direction_hist = np.zeros(self.k_s)
-            if len(connected_drones_i) == 0:
-                drones_in_kl.append(list(direction_hist))
-                continue
+            # print(f"for drone {i} the angle wrt drone {j} is {theta_ij=}")
+            # print(f"shifting with {self.state[i,2] - np.pi/2}")
+            # print(f"{(self.obs_regions.copy() + self.state[i,2] - np.pi/2)=}")
+            obs_regions_new = [(n + self.state[i,2] - np.pi/2) % (2*np.pi) for n in self.obs_regions.copy()]
+            # print(f"{obs_regions_new=}")
 
-            for j in connected_drones_i:
-                if (self.state[j,0]-self.state[i,0]) == 0:
-                    theta_ij = 0
-                else:
-                    theta_ij = np.arctan((self.state[j,1]-self.state[i,1]) / (self.state[j,0]-self.state[i,0]))
+            for k in range(self.k_l - 1):
+                if theta_ij >= (obs_regions_new[k] % (2*np.pi)) and theta_ij < (obs_regions_new[k+1] % (2*np.pi)):
+                    # print(f"{k=} for drone {i} wrt drone {j}")
+                    crowdedness_i[k] += 1
+                    # print(f"{crowdedness_i=}")
+                    break
+            # print(f"continuing loop")
+        return crowdedness_i
 
-                if theta_ij >= self.obs_regions[k] and theta_ij < self.obs_regions[k+1]:
-
-                    dir_drone_j = self.state[j,2]
-
-                    index_dir_drone_j = list(self.direction_angles).index(dir_drone_j)
-                    direction_hist[index_dir_drone_j] += 1
-
-                    connected_drones_i.pop(connected_drones_i.index(j))
-
-            drones_in_kl.append(list(direction_hist))
-
-
-
-        return drones_in_kl
 
 
 
@@ -132,15 +148,19 @@ class Env_Task1(gym.Env):
         observations_N = []
 
         for i in range(self.N):
+            obs_i = np.zeros((self.k_l-1+3))
 
             # find drones within the range Rv of drone i
             connected_drones_i = self.find_connected_drones(i)
+            # print(f"for drone {i}, {connected_drones_i=}")
 
+            crowdedness_i = self.classify_drones_in_bins(i, connected_drones_i)
 
-            obs_i = self.classify_drones_in_bins(i, connected_drones_i)
+            obs_i[0:3] = self.state[i,0:3]
+            obs_i[3:] = crowdedness_i
 
-            observations_N.append(np.array(obs_i).flatten())
-
+            observations_N.append(obs_i)
+        # print(f"{observations_N=}")
         return observations_N
 
 
@@ -390,8 +410,10 @@ class Env_Task1(gym.Env):
 
 
         obs_N = self.get_obs()
+        # print(f"{obs_N=}")
 
         reward_N = self.get_rewards()
+        # print(f"{reward_N=}")
 
 
         collective_reward  = np.sum(reward_N)
@@ -493,14 +515,14 @@ class Env_Task1(gym.Env):
 
 if __name__ == "__main__":
 
-    N = 2
+    N = 5
     M = N-1
     k_a = 5
     k_s = 16
     k_l = 8
     theta_max = np.pi / 4
     boundary_width = 1
-    Rv = 3
+    Rv = 6
     L = 20 + (2 * boundary_width)
     La_x = 5
     La_y = 10
@@ -547,10 +569,11 @@ if __name__ == "__main__":
 
         actions = np.random.randint(0,k_a, size=N)
 
-        obs_N, reward, done, trunc, info_N = env.step(actions)
+        obs_N, reward, done, info_N = env.step(actions)
         # print(f"{reward=}")
         env.render()
-        if done:
+        if any(done):
+            print(f"{done=}")
             obs_N, info_N = env.reset()
 
 

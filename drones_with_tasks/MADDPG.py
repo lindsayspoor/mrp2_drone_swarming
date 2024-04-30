@@ -39,7 +39,7 @@ class MADDPG:
         
         if not buffer.is_ready_to_sample():
             return
-        print(f"ready to sample")
+        # print(f"ready to sample")
         actor_states, states, actions, rewards, actor_new_states, new_states, dones = buffer.sample()
 
         device = self.agents[0].actor.device
@@ -58,7 +58,7 @@ class MADDPG:
             new_actor_states = T.tensor(actor_new_states[i], dtype=T.float).to(device)
 
             new_action = agent.target_actor.forward(new_actor_states)
-            print(f"did it, {i}")
+            # print(f"did it, {i}")
             all_new_actions.append(new_action)
             mu_states = T.tensor(actor_states[i], dtype=T.float).to(device)
 
@@ -75,16 +75,17 @@ class MADDPG:
         for i, agent in enumerate(self.agents):
             
             new_critic_value = agent.target_critic.forward(new_states, new_actions).flatten()
-            print(f"did the target critic forward, {i}")
+            print(f"{new_critic_value.shape=}")
+            # print(f"did the target critic forward, {i}")
             new_critic_value[dones[:,0]] = 0.0
             critic_value = agent.critic.forward(states, old_actions).flatten()
-            print(f"critic forward {i}")
+            # print(f"critic forward {i}")
             target = rewards[:,i] + agent.gamma * new_critic_value
             critic_loss = F.mse_loss(target, critic_value)
             agent.critic.optimizer.zero_grad()
             
             critic_loss.backward(retain_graph=True)
-            print(f" did the critic loss {i}")
+            # print(f" did the critic loss {i}")
             agent.critic.optimizer.step()
 
             actor_loss = agent.critic.forward(states, mu).flatten()
@@ -94,4 +95,4 @@ class MADDPG:
             agent.actor.optimizer.step()
 
             agent.update_params()
-            print("end of loop")
+            # print("end of loop")

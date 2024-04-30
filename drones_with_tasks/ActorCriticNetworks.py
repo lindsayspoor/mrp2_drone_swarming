@@ -5,6 +5,12 @@ import torch.optim as optim
 import os
 
 
+def softmax(x):
+    exp_x = T.exp(x)
+    return exp_x / T.sum(exp_x, axis=1, keepdims=True)
+    
+
+
 class Critic(nn.Module):
     def __init__(self, alpha, input_dims, layer1_dims, layer2_dims, N, N_actions, filename, directory):
         super(Critic, self).__init__()
@@ -54,13 +60,16 @@ class Actor(nn.Module):
 
         self.to(self.device)
 
-    
+
+
     def forward(self, obs):
         # print(f"{obs=}")
-        x1 = F.relu(self.layer1(obs))
+        x = F.relu(self.layer1(obs))
         # print(f"{x1=}")
-        x2 = F.relu(self.layer2(x1))
-        output = T.softmax(self.out_layer(x2), dim=-1)
+        x = F.relu(self.layer2(x))
+        # print(f"{x2=}")
+        print(f"{self.out_layer(x).shape=}")
+        output = T.softmax(self.out_layer(x), dim=0).clone()
         print(f"{output.shape=}")
         return output
     
