@@ -58,8 +58,9 @@ class Env_Task1(gym.Env):
         low[0:3] = [0,0,self.direction_angles[0]]
         high = np.zeros((self.k_l-1+3))
         high[0:3] = [self.L, self.L, self.direction_angles[-1]]
-        high[3:] = self.M
+        high[3:] = self.N
         self.observation_space = spaces.Box(low = low, high=high, dtype = np.float64)
+        # print(f"{self.observation_space.shape}")
         # print(f"{self.observation_space.sample()=}")
         # print(np.sum(np.array([self.observation_space[0].shape, self.observation_space[1].shape])))
         # exit()
@@ -98,10 +99,10 @@ class Env_Task1(gym.Env):
 
 
         obs_N = self.get_obs()
-        info_N = {}
+        # info_N = {}
         # print(f"{obs_N=}")
 
-        return obs_N, info_N
+        return obs_N #, info_N
 
 
 
