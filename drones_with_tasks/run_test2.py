@@ -57,6 +57,10 @@ if __name__ == '__main__':
     env = Env_Task1(settings=settings)
 
 
+    train = True
+    evaluate = True
+    render = True
+    load = True
 
     step_counter = 20
     batch_size = 5
@@ -65,10 +69,11 @@ if __name__ == '__main__':
     agent = Agent(n_actions=k_a, batch_size=batch_size,
                   alpha=alpha, n_epochs=n_epochs,
                   input_dims=(env.observation_space.shape))
-    n_games = 300
+    n_training_games = 10
+    n_evaluation_games = 3
 
-    figure_file = 'plots/test.png'
-
+    learning_curve_file = 'plots/test2.pdf'
+ 
     best_score = np.min(env.reward_grid)# env.reward_range[0]
     score_history = []
 
@@ -76,42 +81,85 @@ if __name__ == '__main__':
     avg_score = 0
     n_steps = 0
 
-    for i in tqdm(range(n_games)):
-        observation_N = env.reset()
-        done_N = [False] * N
-        score = 0
-        while not any(done_N):
-            # loop through all drones
-            action_N = []
-            prob_N = []
-            val_N = []
-            # reward_N = []
-            # done_N = []
-            for j in range(N):
-                action, prob, val = agent.choose_action(observation_N[j])
-                # print(f"{action=}")
-                action_N.append(action)
-                prob_N.append(prob)
-                val_N.append(val)
-            observation_N_, reward_N, done_N, info_N = env.step(action_N)
-            print(f"{reward_N=}")
-            n_steps += 1
-            score += reward_N[0]
-            for j in range(N):
-                agent.store_transition(observation_N[j], action_N[j],
-                                    prob_N[j], val_N[j], reward_N[j], done_N[j])
-            if n_steps % step_counter == 0:
-                agent.learn()
-                learn_iters += 1
-            observation_N = observation_N_
-        score_history.append(score)
-        avg_score = np.mean(score_history[-100:])
+    if train:  
 
-        if avg_score > best_score:
-            best_score = avg_score
-            agent.save_models()
+        for i in tqdm(range(n_training_games)):
+            observation_N = env.reset()
+            done_N = [False] * N
+            score = 0
+            while not any(done_N):
+                # loop through all drones
+                action_N = []
+                prob_N = []
+                val_N = []
+                # reward_N = []
+                # done_N = []
+                for j in range(N):
+                    action, prob, val = agent.choose_action(observation_N[j])
+                    # print(f"{action=}")
+                    action_N.append(action)
+                    prob_N.append(prob)
+                    val_N.append(val)
+                observation_N_, reward_N, done_N, info_N = env.step(action_N)
+                # print(f"{reward_N=}")
+                n_steps += 1
+                score += reward_N[0]
+                for j in range(N):
+                    agent.store_transition(observation_N[j], action_N[j],
+                                        prob_N[j], val_N[j], reward_N[j], done_N[j])
+                if n_steps % step_counter == 0:
+                    agent.learn()
+                    learn_iters += 1
+                observation_N = observation_N_
+            score_history.append(score)
+            avg_score = np.mean(score_history[-100:])
 
-        print('episode', i, 'score %.1f' % score, 'avg score %.1f' % avg_score,
-              'time_steps', n_steps, 'learning_steps', learn_iters)
-    x = [i+1 for i in range(len(score_history))]
-    plot_learning_curve(x, score_history, figure_file)
+            if avg_score > best_score:
+                best_score = avg_score
+                agent.save_models()
+
+            print('episode', i, 'score %.1f' % score, 'avg score %.1f' % avg_score,
+                'time_steps', n_steps, 'learning_steps', learn_iters)
+        x = [i+1 for i in range(len(score_history))]
+        plot_learning_curve(x, score_history, learning_curve_file)
+
+    if evaluate:
+        if load:
+            agent.load_models()
+
+        for i in tqdm(range(n_evaluation_games)):
+            observation_N = env.reset()
+            if render:
+                env.render()
+            done_N = [False] * N
+            score = 0
+            while not any(done_N):
+                # loop through all drones
+                action_N = []
+
+                for j in range(N):
+                    action, prob, val = agent.choose_action(observation_N[j])
+                    # print(f"{action=}")
+                    action_N.append(action)
+
+                observation_N_, reward_N, done_N, info_N = env.step(action_N)
+
+                if render:
+                    env.render()
+                # print(f"{reward_N=}")
+                n_steps += 1
+                score += reward_N[0]
+
+                observation_N = observation_N_
+            score_history.append(score)
+            avg_score = np.mean(score_history[-100:])
+
+
+
+            print('episode', i, 'score %.1f' % score, 'avg score %.1f' % avg_score,
+                'time_steps', n_steps, 'learning_steps', learn_iters)
+
+
+
+
+

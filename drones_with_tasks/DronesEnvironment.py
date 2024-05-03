@@ -40,30 +40,25 @@ class Env_Task1(gym.Env):
         self.goal_reward = settings["goal_reward"]
 
         self.action_angles = np.linspace(-self.theta_max, self.theta_max, self.k_a)
-        self.direction_angles = np.linspace(-np.pi+(2*np.pi/self.k_s), np.pi, self.k_s)
-        # self.obs_regions = np.linspace(-np.pi+(2*np.pi/self.k_s), np.pi, self.k_l)
+
+        self.direction_angles = np.linspace(0, 2*np.pi, self.k_s)
+
         self.obs_regions = np.linspace(0, 2*np.pi, self.k_l)
-        # print(f"{self.obs_regions=}")
-        # exit()
+
         self.counter = 0 # updates each step to count what timestep we are in
         self.done = False
         self.truncated = False
         self.collective_reward = 0
 
         self.action_space = spaces.MultiDiscrete([self.k_a] * self.N) # for all N drones, k_a possible action angles to choose from
-        # self.observation_space = spaces.MultiDiscrete([[[self.M] * self.k_s] * (self.k_l-1)] * self.N)
-        # self.observation_space = spaces.MultiDiscrete([[self.M] * (self.k_l-1)] * self.N) # for each drone we can observe a maximum of M=N-1 other drones per k_l segment (crowdedness)
-        # print(np.array([self.observation_space[0].shape, self.observation_space[1].shape]))
+
         low = np.zeros((self.k_l-1+3))
         low[0:3] = [0,0,self.direction_angles[0]]
         high = np.zeros((self.k_l-1+3))
         high[0:3] = [self.L, self.L, self.direction_angles[-1]]
         high[3:] = self.N
         self.observation_space = spaces.Box(low = low, high=high, dtype = np.float64)
-        # print(f"{self.observation_space.shape}")
-        # print(f"{self.observation_space.sample()=}")
-        # print(np.sum(np.array([self.observation_space[0].shape, self.observation_space[1].shape])))
-        # exit()
+
         self.initialize_grid()
 
         self.state = np.zeros((self.N, 3)) # N drones, x coordinate, y coordinate, k_s angle
@@ -125,19 +120,17 @@ class Env_Task1(gym.Env):
             
             theta_ij = theta_ij % (2*np.pi)
 
-            # print(f"for drone {i} the angle wrt drone {j} is {theta_ij=}")
-            # print(f"shifting with {self.state[i,2] - np.pi/2}")
-            # print(f"{(self.obs_regions.copy() + self.state[i,2] - np.pi/2)=}")
+
             obs_regions_new = [(n + self.state[i,2] - np.pi/2) % (2*np.pi) for n in self.obs_regions.copy()]
-            # print(f"{obs_regions_new=}")
+
 
             for k in range(self.k_l - 1):
                 if theta_ij >= (obs_regions_new[k] % (2*np.pi)) and theta_ij < (obs_regions_new[k+1] % (2*np.pi)):
-                    # print(f"{k=} for drone {i} wrt drone {j}")
+
                     crowdedness_i[k] += 1
-                    # print(f"{crowdedness_i=}")
+
                     break
-            # print(f"continuing loop")
+
         return crowdedness_i
 
 
@@ -246,10 +239,20 @@ class Env_Task1(gym.Env):
     def update_drone_directions(self, i):
         '''Update the directions of the drones according to their velocities.'''
 
-        if self.drone_velocities[i,0] == 0:
-            new_angle = self.find_nearest(self.direction_angles, 0)
-        else:
-            new_angle = self.find_nearest(self.direction_angles, np.arctan(self.drone_velocities[i,1]/self.drone_velocities[i,0]))
+
+
+        if self.drone_velocities[i,0] > 0:
+            theta = np.arctan(self.drone_velocities[i,1]/self.drone_velocities[i,0])
+        if self.drone_velocities[i,0] < 0:
+            theta = np.arctan(self.drone_velocities[i,1]/self.drone_velocities[i,0]) + np.pi
+        if self.drone_velocities[i,0] == 0 and self.drone_velocities[i,1] > 0:
+            theta = np.pi/2
+        if self.drone_velocities[i,0] == 0 and self.drone_velocities[i,1] < 0:
+            theta = (3*np.pi)/2
+        
+        theta = theta % (2*np.pi)
+
+        new_angle = self.find_nearest(self.direction_angles, theta)
 
         
         self.drone_directions[i] = new_angle
@@ -294,6 +297,36 @@ class Env_Task1(gym.Env):
 
 
         self.state[i,0:2] = new_pos
+
+        self.bounce_from_boundaries(i)
+
+
+    def bounce_from_boundaries(self,i):
+        '''Makes sure that drones that would have been updated to a position outside of the boundaries are brought back inside
+        of the map, where the positions are mirrored onto the boundary and the velocity vector + directions are mirrored as well.'''
+
+        if (self.state[i,0] >= (self.L - self.boundary_width)):
+            new_pos_x = (self.L - self.boundary_width) - (self.state[i,0] - (self.L - self.boundary_width))
+            self.state[i,0] = new_pos_x
+            self.drone_velocities[i,0] = self.drone_velocities[i,0] * -1
+            
+        if (self.state[i,0] <= self.boundary_width):
+            new_pos_x = self.boundary_width - (self.state[i,0] - self.boundary_width)
+            self.state[i,0] = new_pos_x
+            self.drone_velocities[i,0] = self.drone_velocities[i,0] * -1
+
+        if (self.state[i,1] >= (self.L - self.boundary_width)):
+            new_pos_y = (self.L - self.boundary_width) - (self.state[i,1] - (self.L - self.boundary_width))
+            self.state[i,1] = new_pos_y
+            self.drone_velocities[i,1] = self.drone_velocities[i,1] * -1
+
+        if (self.state[i,1] <= self.boundary_width):
+            new_pos_y = self.boundary_width - (self.state[i,1] - self.boundary_width)
+            self.state[i,1] = new_pos_y
+            self.drone_velocities[i,1] = self.drone_velocities[i,1] * -1
+        
+        self.drone_velocities[i,:] = self.drone_velocities[i,:] / np.linalg.norm(self.drone_velocities[i,:])
+
 
 
 
@@ -351,7 +384,7 @@ class Env_Task1(gym.Env):
         for j in connected_drones_i:
 
             if np.sqrt((positions[j,0]-positions[i,0])**2+(positions[j,1]-positions[i,1])**2) < 1:
-                collision_reward_i -= (1 - np.sqrt((positions[j,0]-positions[i,0])**2+(positions[j,1]-positions[i,1])**2))
+                collision_reward_i -= (1 - np.sqrt((positions[j,0] - positions[i,0]) ** 2+(positions[j,1] - positions[i,1]) ** 2))
 
 
         return collision_reward_i
@@ -400,12 +433,12 @@ class Env_Task1(gym.Env):
             action_angle = self.action_angles[actions[i]]
 
             self.update_drone_velocities(i, action_angle)
+            
+            self.update_drone_positions(i)
 
             self.update_drone_directions(i)
 
             self.state[i,2] = self.drone_directions[i]
-            
-            self.update_drone_positions(i)
             
 
 
@@ -564,7 +597,7 @@ if __name__ == "__main__":
     
     env = Env_Task1(settings=settings)
 
-    obs_N, info_N = env.reset()
+    obs_N = env.reset()
     env.render()
     for i in range(30):
 
@@ -575,7 +608,7 @@ if __name__ == "__main__":
         env.render()
         if any(done):
             print(f"{done=}")
-            obs_N, info_N = env.reset()
+            obs_N = env.reset()
 
 
     
