@@ -9,7 +9,7 @@ from PPOActorCriticNetworks import ActorNetwork, CriticNetwork
 
 class Agent:
     def __init__(self, n_agents, n_actions, input_dims, gamma=0.99, alpha=0.0003,
-                 gae_lambda=0.95, policy_clip=0.2, batch_size=64,
+                 gae_lambda=0.95, policy_clip=0.1, batch_size=64,
                  n_epochs=10, chkpt_dir='models/', filename='model'):
         self.n_agents = n_agents
         self.gamma = gamma
@@ -61,7 +61,7 @@ class Agent:
             state_arr, action_arr, old_prob_arr, vals_arr,\
                 reward_arr, dones_arr, batches = \
                 self.memory.generate_batches()
-            print(f"{np.array(reward_arr).shape=}")
+            # print(f"{np.array(reward_arr).shape=}")
             values = vals_arr
 
             advantage = np.zeros(len(reward_arr), dtype=np.float32)
@@ -94,11 +94,11 @@ class Agent:
                     critic_value = tf.squeeze(critic_value, 1)
 
                     prob_ratio = tf.math.exp(new_probs - old_probs)
-                    weighted_probs = advantage[batch] * prob_ratio
+                    weighted_probs = advantage[batch] * prob_ratio # L^CPI
                     clipped_probs = tf.clip_by_value(prob_ratio,
                                                     1-self.policy_clip,
                                                     1+self.policy_clip)
-                    weighted_clipped_probs = clipped_probs * advantage[batch]
+                    weighted_clipped_probs = clipped_probs * advantage[batch] # L^CLIP
                     actor_loss = -tf.math.minimum(weighted_probs,
                                                 weighted_clipped_probs)
                     actor_loss = tf.math.reduce_mean(actor_loss)

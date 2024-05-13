@@ -6,31 +6,35 @@ from tqdm import tqdm
 
 if __name__ == '__main__':
 
-    N = 2
-    M = 1
+    N = 1
+    M = N-1
     k_a = 5
-    k_s = 16
+    k_s = 8
     k_l = 8
     theta_max = np.pi / 4
+    # theta_max  = np.pi
     boundary_width = 1
     Rv = 6
     L = 20 + (2 * boundary_width)
     La_x = 5
     La_y = 10
-    Lb_x = 5
-    Lb_y = 20
+    Lb_x = 7
+    Lb_y = 10
     origin_Ax = 1 + boundary_width
     origin_Ay = 5 + boundary_width
-    origin_Bx = L - Lb_x - boundary_width
-    origin_By = 0 + boundary_width
-    max_timesteps = 100
-    step_reward = 0.03
-    goal_reward = 10
+    origin_Bx = L - Lb_x - boundary_width - 2
+    origin_By = 5 + boundary_width
+    max_timesteps = 200
+    step_reward = -0.1
+    goal_reward = 1
+    boundary_reward = -1
+    reward_decay = 1
 
-    step_counter = 20
-    batch_size = 5 # actual length of each batch is step_counter/batch_size amount of batches, so for each learning epoch it constructs step_counter/batch_size amount of batches.
+    step_counter = 100
+    batch_size = 50 # actual length of each batch is step_counter/batch_size amount of batches, so for each learning epoch it constructs step_counter/batch_size amount of batches.
     n_epochs = 4 # and then for each epoch it samples multiple batches of length batch_size out of the memory and performs learning on it.
     alpha = 0.0003
+    n_training_games = 500
 
     # n_timesteps = 100000
     # eval_eps = 100
@@ -54,13 +58,15 @@ if __name__ == '__main__':
                 "origin_By": origin_By,
                 "max_timesteps": max_timesteps,
                 "step_reward": step_reward,
-                "goal_reward": goal_reward
+                "goal_reward": goal_reward,
+                "boundary_reward":boundary_reward,
+                "reward_decay": reward_decay
                 }
     
     env = Env_Task1(settings=settings)
 
-    n_training_games = 500
-    filename = f"{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}"
+    
+    filename = f"{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}"
 
     agent = Agent(n_agents = N, n_actions=k_a, batch_size=batch_size,
                   alpha=alpha, n_epochs=n_epochs,
@@ -68,7 +74,7 @@ if __name__ == '__main__':
     
     # n_evaluation_games = 3
 
-    learning_curve_file = f'plots/learning_curve_task1_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}.pdf'
+    learning_curve_file = f'plots/learning_curve_task1_{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}.pdf'
  
     best_score = np.min(env.reward_grid)# env.reward_range[0]
     score_history = []

@@ -38,8 +38,11 @@ class Env_Task1(gym.Env):
         self.max_timesteps = settings["max_timesteps"] # maximum amount of timesteps to play game before truncation
         self.step_reward = settings["step_reward"]
         self.goal_reward = settings["goal_reward"]
+        self.boundary_reward = settings["boundary_reward"]
+        self.reward_decay = settings["reward_decay"]
 
         self.action_angles = np.linspace(-self.theta_max, self.theta_max, self.k_a)
+        # print(f"{self.action_angles=}")
 
         self.direction_angles = np.linspace(0, 2*np.pi, self.k_s)
 
@@ -60,14 +63,16 @@ class Env_Task1(gym.Env):
         self.observation_space = spaces.Box(low = low, high=high, dtype = np.float64)
 
         self.initialize_grid()
+        self.grid_visits = np.zeros((self.L, self.L))
 
         self.state = np.zeros((self.N, 3)) # N drones, x coordinate, y coordinate, k_s angle
+        self.old_state = np.zeros((self.N, 3)) # N drones, x coordinate, y coordinate, k_s angle
 
         self.initialize_drones()
 
         self.initialize_rewards()
         
-        # self.reset()
+
 
 
     def seed(self, seed=None):
@@ -86,18 +91,16 @@ class Env_Task1(gym.Env):
         self.counter = 0
         self.collective_reward = 0
 
-        # self.state = np.zeros((self.N, 3)) # N drones, x coordinate, y coordinate, k_s angle
 
         self.initialize_drones()
 
         self.initialize_rewards()
 
-
+        self.grid_visits = np.zeros((self.L, self.L))
         obs_N = self.get_obs()
-        # info_N = {}
-        # print(f"{obs_N=}")
 
-        return obs_N #, info_N
+
+        return obs_N
 
 
 
@@ -146,7 +149,7 @@ class Env_Task1(gym.Env):
 
             # find drones within the range Rv of drone i
             connected_drones_i = self.find_connected_drones(i)
-            # print(f"for drone {i}, {connected_drones_i=}")
+
 
             crowdedness_i = self.classify_drones_in_bins(i, connected_drones_i)
 
@@ -154,7 +157,7 @@ class Env_Task1(gym.Env):
             obs_i[3:] = crowdedness_i
 
             observations_N.append(obs_i)
-        # print(f"{observations_N=}")
+
         return observations_N
 
 
@@ -201,15 +204,13 @@ class Env_Task1(gym.Env):
 
         self.reward_grid = np.zeros((self.L,self.L))
 
-        self.reward_grid = self.reward_function_linear()
+        # self.reward_grid = self.reward_function_linear()
+        for i in range(self.boundary_width, self.L - self.boundary_width):
+            self.reward_grid[i,:] = self.step_reward
 
         self.reward_grid[self.grid_B_positions[0][0]:(self.grid_B_positions[-1][0]+1), self.grid_B_positions[0][1]:(self.grid_B_positions[-1][1]+1)] = self.goal_reward
 
-        # define boundaries by assigning a very large negative reward to these grid positions
-        self.reward_grid[0, :] = -100
-        self.reward_grid[:,0] = -100
-        self.reward_grid[-1,:] = -100
-        self.reward_grid[:,-1] = -100
+
 
 
 
@@ -257,26 +258,47 @@ class Env_Task1(gym.Env):
         
         self.drone_directions[i] = new_angle
 
+    def enter_leaving(self, i, old_positions, new_positions):
 
+        if (new_positions[i,0] >= self.origin_Bx) and (new_positions[i,0] < (self.origin_Bx+self.Lb_x)) and (new_positions[i,1] >= self.origin_By) and (new_positions[i,1] < (self.origin_By+self.Lb_y)):
+            if (old_positions[i,0] < self.origin_Bx) or (old_positions[i,0] >= (self.origin_Bx + self.Lb_x)) or (old_positions[i,1] < self.origin_By) or (old_positions[i,1] >= (self.origin_By + self.Lb_y)):
+                return 0.1
+            else:
+                return 0
 
-    def positional_rewards(self,i,positions):
-        '''Checks whether the new position update results in a drone flying out of the boundary. Game is terminated in this case.'''
-        
-        if positions[i,0] <= self.boundary_width or positions[i,0] >= (self.L-self.boundary_width) or positions[i,1] <= self.boundary_width or positions[i,1] >= (self.L-self.boundary_width):
-            reward = -100
-            # done = True
-            return reward#, done
-        
+        if (old_positions[i,0] >= self.origin_Bx) and (old_positions[i,0] < (self.origin_Bx+self.Lb_x)) and (old_positions[i,1] >= self.origin_By) and (old_positions[i,1] < (self.origin_By+self.Lb_y)):
+            if (new_positions[i,0] < self.origin_Bx) or (new_positions[i,0] >= (self.origin_Bx + self.Lb_x)) or (new_positions[i,1] < self.origin_By) or (new_positions[i,1] >= (self.origin_By + self.Lb_y)):
+                return -0.5
+            else:
+                return 0
 
 
         else:
+            return 0 
 
-            copied_positions = np.array(positions).copy()
-            reward_positions = self.cast_to_grid(i, copied_positions)
 
-            reward = self.reward_grid[int(reward_positions[i,0]), int(reward_positions[i,1])]
-            # done = False
-            return reward#, done
+
+
+    def positional_rewards(self,i,old_positions, new_positions):
+        '''Checks whether the new position update results in a drone flying out of the boundary. Game is terminated in this case.'''
+
+        old_copied_positions = np.array(old_positions).copy()
+        new_copied_positions = np.array(new_positions).copy()
+
+        reward_positions = self.cast_to_grid(i, new_copied_positions)
+        reward_i = self.reward_grid[int(reward_positions[i,0]), int(reward_positions[i,1])]
+        self.grid_visits[int(reward_positions[i,1]), int(reward_positions[i,0])] +=1
+        if reward_i != 0:
+            self.reward_grid[int(reward_positions[i,0]), int(reward_positions[i,1])] *= self.reward_decay#0.5#= 0 # *= 0.8
+
+        
+
+
+        enter_leaving_reward_i = self.enter_leaving(i, old_copied_positions, new_positions)
+
+        return reward_i, enter_leaving_reward_i
+
+        
 
 
 
@@ -295,37 +317,54 @@ class Env_Task1(gym.Env):
 
         new_pos = self.state[i,0:2] + self.drone_velocities[i,:]
 
+        self.old_state[i,0:2] = self.state[i,0:2]
+
 
         self.state[i,0:2] = new_pos
 
-        self.bounce_from_boundaries(i)
+        boundary_reward_i = self.bounce_from_boundaries(i)
+
+        return boundary_reward_i
 
 
     def bounce_from_boundaries(self,i):
         '''Makes sure that drones that would have been updated to a position outside of the boundaries are brought back inside
         of the map, where the positions are mirrored onto the boundary and the velocity vector + directions are mirrored as well.'''
 
+        boundary_reward_i = 0
+
         if (self.state[i,0] >= (self.L - self.boundary_width)):
+            # self.done=True
             new_pos_x = (self.L - self.boundary_width) - (self.state[i,0] - (self.L - self.boundary_width))
             self.state[i,0] = new_pos_x
             self.drone_velocities[i,0] = self.drone_velocities[i,0] * -1
+            boundary_reward_i += self.boundary_reward
+
             
         if (self.state[i,0] <= self.boundary_width):
+            # self.done=True
             new_pos_x = self.boundary_width - (self.state[i,0] - self.boundary_width)
             self.state[i,0] = new_pos_x
             self.drone_velocities[i,0] = self.drone_velocities[i,0] * -1
+            boundary_reward_i += self.boundary_reward
 
         if (self.state[i,1] >= (self.L - self.boundary_width)):
+            # self.done=True
             new_pos_y = (self.L - self.boundary_width) - (self.state[i,1] - (self.L - self.boundary_width))
             self.state[i,1] = new_pos_y
             self.drone_velocities[i,1] = self.drone_velocities[i,1] * -1
+            boundary_reward_i += self.boundary_reward
 
         if (self.state[i,1] <= self.boundary_width):
+            # self.done=True
             new_pos_y = self.boundary_width - (self.state[i,1] - self.boundary_width)
             self.state[i,1] = new_pos_y
             self.drone_velocities[i,1] = self.drone_velocities[i,1] * -1
+            boundary_reward_i += self.boundary_reward
         
         self.drone_velocities[i,:] = self.drone_velocities[i,:] / np.linalg.norm(self.drone_velocities[i,:])
+
+        return boundary_reward_i
 
 
 
@@ -390,30 +429,29 @@ class Env_Task1(gym.Env):
         return collision_reward_i
     
 
-    def get_rewards(self):
+    def get_rewards(self, boundary_rewards):
         '''Assigns individual rewards to each drone.'''
 
         reward_N = []
-        # reward = self.reward_grid[int(self.state[i,0]), int(self.state[i,1])]
+
         new_positions = self.state[:,0:2].copy()
+        old_positions = self.old_state[:,0:2].copy()
 
 
         for i in range(self.N):
 
-            position_reward_i = self.positional_rewards(i, new_positions)
+            position_reward_i, enter_leaving_reward_i = self.positional_rewards(i, old_positions, new_positions)
 
 
             collision_reward_i = self.collision_rewards(i, new_positions)
 
             # TODO: add another term for the swarming here
 
-            reward_i = position_reward_i + collision_reward_i
+            reward_i = position_reward_i + collision_reward_i + boundary_rewards[i] + enter_leaving_reward_i
 
-            
+
             reward_N.append(reward_i)
 
-            if position_reward_i == self.goal_reward:
-                self.reward_grid[int(self.state[i,0]), int(self.state[i,1])] = 0.5*self.goal_reward
 
         return reward_N
 
@@ -427,6 +465,7 @@ class Env_Task1(gym.Env):
         info_N = {'N':[]}
 
 
+        boundary_rewards = []
         # first let all drones do their actions and update their positions, directions accordingly
         for i in range(self.N):
 
@@ -434,9 +473,13 @@ class Env_Task1(gym.Env):
 
             self.update_drone_velocities(i, action_angle)
             
-            self.update_drone_positions(i)
+            boundary_reward_i = self.update_drone_positions(i)
+
+            boundary_rewards.append(boundary_reward_i)
 
             self.update_drone_directions(i)
+
+            self.old_state[i,2] = self.state[i,2]
 
             self.state[i,2] = self.drone_directions[i]
             
@@ -444,10 +487,10 @@ class Env_Task1(gym.Env):
 
 
         obs_N = self.get_obs()
-        # print(f"{obs_N=}")
 
-        reward_N = self.get_rewards()
-        # print(f"{reward_N=}")
+
+        reward_N = self.get_rewards(boundary_rewards)
+
 
 
         collective_reward  = np.sum(reward_N)
@@ -457,10 +500,13 @@ class Env_Task1(gym.Env):
         if self.counter == self.max_timesteps:
             self.done = True
 
+
         info_N = {}
         trunc_N = False
 
         done_N = [self.done] * self.N
+
+
 
         return obs_N, reward_N, done_N, info_N
         
@@ -480,23 +526,13 @@ class Env_Task1(gym.Env):
         ax.add_patch(patch_A)
 
 
-        for i in range(self.boundary_width,self.origin_Bx):
+
+        for i in range(self.boundary_width, self.L-self.boundary_width):
 
             for j in range(self.boundary_width,self.L-self.boundary_width):
                 patch_B = plt.Rectangle((a*i, a*j), width = a, height = a, fc = 'darkgreen', zorder=3, alpha=(self.reward_grid[i,j]))
                 ax.add_patch(patch_B)
 
-        # patch_B = plt.Polygon([[a*(self.origin_Bx), a*(self.origin_By)], [a*(self.origin_Bx+Lb_x), a*(self.origin_By)], [a*(self.origin_Bx+Lb_x), a*(self.origin_By+Lb_y)], [a*(self.origin_Bx), a*(self.origin_By+Lb_y)] ], fc = 'lightgreen')
-        # ax.add_patch(patch_B)
-        for i in np.argwhere(self.reward_grid==self.goal_reward):
-            
-            patch_B = plt.Rectangle(a*i, width = a, height = a, fc = 'darkgreen', zorder=6)
-            ax.add_patch(patch_B)
-        
-        for i in np.argwhere(self.reward_grid==(0.5*self.goal_reward)):
-            
-            patch_B = plt.Rectangle(a*i, width = a, height = a, fc = 'darkgreen', zorder=6, alpha=0.5)
-            ax.add_patch(patch_B)
 
         
 
@@ -549,7 +585,7 @@ class Env_Task1(gym.Env):
 
 if __name__ == "__main__":
 
-    N = 5
+    N = 1
     M = N-1
     k_a = 5
     k_s = 16
@@ -560,15 +596,16 @@ if __name__ == "__main__":
     L = 20 + (2 * boundary_width)
     La_x = 5
     La_y = 10
-    Lb_x = 5
-    Lb_y = 20
+    Lb_x = 7
+    Lb_y = 10
     origin_Ax = 1 + boundary_width
     origin_Ay = 5 + boundary_width
-    origin_Bx = L - Lb_x - boundary_width
-    origin_By = 0 + boundary_width
+    origin_Bx = L - Lb_x - boundary_width -1
+    origin_By = 5 + boundary_width
     max_timesteps = 100
-    step_reward = 0.03
-    goal_reward = 10
+    step_reward = 0
+    goal_reward = 1
+    boundary_reward = -1
 
     n_timesteps = 100000
     eval_eps = 100
@@ -592,7 +629,8 @@ if __name__ == "__main__":
                 "origin_By": origin_By,
                 "max_timesteps": max_timesteps,
                 "step_reward": step_reward,
-                "goal_reward": goal_reward
+                "goal_reward": goal_reward,
+                "boundary_reward": boundary_reward
                 }
     
     env = Env_Task1(settings=settings)
@@ -604,7 +642,7 @@ if __name__ == "__main__":
         actions = np.random.randint(0,k_a, size=N)
 
         obs_N, reward, done, info_N = env.step(actions)
-        # print(f"{reward=}")
+
         env.render()
         if any(done):
             print(f"{done=}")
