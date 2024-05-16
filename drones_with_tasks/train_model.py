@@ -8,11 +8,11 @@ if __name__ == '__main__':
 
     N = 1
     M = N-1
-    k_a = 5
-    k_s = 8
+    k_a = 3
+    k_s = 4
     k_l = 8
-    theta_max = np.pi / 4
-    # theta_max  = np.pi
+    # theta_max = np.pi / 4
+    theta_max  = np.pi / 2
     boundary_width = 1
     Rv = 6
     L = 20 + (2 * boundary_width)
@@ -25,16 +25,16 @@ if __name__ == '__main__':
     origin_Bx = L - Lb_x - boundary_width - 2
     origin_By = 5 + boundary_width
     max_timesteps = 200
-    step_reward = -0.1
+    step_reward = 0
     goal_reward = 1
     boundary_reward = -1
-    reward_decay = 1
+    reward_decay = 0.75
 
-    step_counter = 100
-    batch_size = 50 # actual length of each batch is step_counter/batch_size amount of batches, so for each learning epoch it constructs step_counter/batch_size amount of batches.
+    step_counter = 20
+    batch_size = 5 # actual length of each batch is step_counter/batch_size amount of batches, so for each learning epoch it constructs step_counter/batch_size amount of batches.
     n_epochs = 4 # and then for each epoch it samples multiple batches of length batch_size out of the memory and performs learning on it.
     alpha = 0.0003
-    n_training_games = 500
+    n_training_games = 5000
 
     # n_timesteps = 100000
     # eval_eps = 100
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     env = Env_Task1(settings=settings)
 
     
-    filename = f"{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}"
+    filename = f"{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}"
 
     agent = Agent(n_agents = N, n_actions=k_a, batch_size=batch_size,
                   alpha=alpha, n_epochs=n_epochs,
@@ -74,8 +74,9 @@ if __name__ == '__main__':
     
     # n_evaluation_games = 3
 
-    learning_curve_file = f'plots/learning_curve_task1_{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}.pdf'
- 
+    learning_curve_file = f'plots/learning_curve_task1_{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}.pdf'
+    learning_curve_data = f'data/learning_curve_task1_{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}.csv'
+
     best_score = np.min(env.reward_grid)# env.reward_range[0]
     score_history = []
 
@@ -127,6 +128,7 @@ if __name__ == '__main__':
         print('episode', i, 'score %.1f' % score, 'avg score %.1f' % avg_score,
             'time_steps', n_steps, 'learning_steps', learn_iters)
     x = [i+1 for i in range(len(score_history))]
+    np.savetxt(learning_curve_data, score_history)
     plot_learning_curve(x, score_history, learning_curve_file)
 
 

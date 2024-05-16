@@ -2,41 +2,41 @@ import gym
 import numpy as np
 from PPOAgent import Agent
 from utils import plot_learning_curve
-from DronesEnvironment import Env_Task1
+from DronesEnv_task2 import Env_Task2
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    N = 1
+    N = 3
     M = N-1
     k_a = 3
     k_s = 4
-    k_l = 8
+    k_l = 5
     # theta_max = np.pi / 4
-    theta_max  = np.pi / 2
+    theta_max  = np.pi /2
     boundary_width = 1
-    Rv = 6
-    L = 20 + (2 * boundary_width)
-    La_x = 5
+    Rv = 15
+    L = 12 + (2 * boundary_width)
+    La_x = 10
     La_y = 10
-    Lb_x = 7
+    Lb_x = 10
     Lb_y = 10
     origin_Ax = 1 + boundary_width
-    origin_Ay = 5 + boundary_width
-    origin_Bx = L - Lb_x - boundary_width - 2
-    origin_By = 5 + boundary_width
-    max_timesteps = 200
+    origin_Ay = 1 + boundary_width
+    origin_Bx = L - Lb_x - boundary_width - 1
+    origin_By = 1 + boundary_width
+    max_timesteps = 100
     step_reward = 0
     goal_reward = 1
     boundary_reward = -1
-    reward_decay = 0.75
+    reward_decay = 0.5
 
     step_counter = 20
     batch_size = 5 # actual length of each batch is step_counter/batch_size amount of batches, so for each learning epoch it constructs step_counter/batch_size amount of batches.
     n_epochs = 4 # and then for each epoch it samples multiple batches of length batch_size out of the memory and performs learning on it.
     alpha = 0.0003
-    n_training_games = 5000
+    n_training_games = 1000
 
 
     settings = {"N": N,
@@ -63,14 +63,14 @@ if __name__ == '__main__':
                 "reward_decay": reward_decay
                 }
     
-    env = Env_Task1(settings=settings)
+    env = Env_Task2(settings=settings)
 
 
 
-    render = True
+    render = False
 
 
-    filename = f"{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}"
+    filename = f"task2_{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}"
 
     agent = Agent(n_agents = N, n_actions=k_a, batch_size=batch_size,
                   alpha=alpha, n_epochs=n_epochs,
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     plt.xlabel("x grid positions")
     plt.ylabel("y grid positions")
     plt.title("Mean grid visits per game")
-    plt.savefig(f"plots/grid_visits_task1_{n_evaluation_games=}_{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}.pdf")
+    plt.savefig(f"plots/grid_visits_task2_{n_evaluation_games=}_{n_training_games=}_{N=}_{Rv=}_{step_counter=}_{batch_size=}_{n_epochs=}_{alpha=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}.pdf")
 
 
 
