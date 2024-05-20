@@ -41,7 +41,7 @@ def plot_log_results(log_folder,  save_model_path, title="Average training rewar
     # Truncate x
     x = x[len(x) - len(y) :]
 
-    np.savetxt(f"log_dir/{save_model_path}.csv",(x,y) )
+    np.savetxt(f"{log_folder}{save_model_path}.csv",(x,y) )
 
     fig = plt.figure(title)
     plt.plot(x, y, color = 'blue', linewidth=0.9)
@@ -49,4 +49,8 @@ def plot_log_results(log_folder,  save_model_path, title="Average training rewar
     plt.xlabel("Number of training episodes")
     plt.ylabel("Reward")
     plt.grid()
-    plt.savefig(f'log_dir/{save_model_path}.pdf')
+    plt.savefig(f'{log_folder}{save_model_path}.pdf')
+
+
+
+

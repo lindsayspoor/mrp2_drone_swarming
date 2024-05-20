@@ -5,8 +5,11 @@ from gymnasium import spaces
 from gymnasium.utils import seeding
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from typing import Any
 from stable_baselines3 import PPO
+import pygame
+from gymnasium.wrappers import RecordVideo
 # from marllib import marl
 
 
@@ -14,10 +17,14 @@ from stable_baselines3 import PPO
 class Env_Task2(gym.Env):
     """Environment for drones to perform task 2, which is to explore the area of the map in which they are already initialized."""
 
-    metadata = {"render_modes": ["human"], "render_fps": 30}
+    metadata = {"render_modes": ["rgb_array"], "render_fps": 60}
 
-    def __init__(self, settings):
+    def __init__(self, settings, render_mode=None):
         super().__init__()
+
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
+        
 
         self.N = settings["N"] # N is the numer of drones the swarm consists of
         self.k_a = settings["k_a"] # k_a equally spaced angles for the actions in range [-theta_max, theta_max]
@@ -27,6 +34,7 @@ class Env_Task2(gym.Env):
         self.theta_max = settings["theta_max"]
         self.boundary_width = settings["boundary_width"] # number of grid elements the boundary width consists of
         self.L = settings["L"] # size of grid of total enviroment (LxL)
+        self.window_size = self.L
         self.Rv = settings["Rv"] # visibility Radius for each drone
         self.La_x = settings["La_x"] # x-size of area A
         self.La_y = settings["La_y"] # y-size of area A
@@ -567,10 +575,36 @@ class Env_Task2(gym.Env):
 
 
 
+    # def _render_frame(self):
+
+    #     canvas = pygame.Surface((self.window_size, self.window_size))
+    #     canvas.fill((0,0,0))
+    #     a = ( self.window_size / self.L )
+    #     # a=1/(self.L)
+
+    #     pygame.draw.polygon(canvas, (0,255,255), [[a*(self.origin_Ax), a*(self.origin_Ay)], [a*(self.origin_Ax+self.La_x), a*(self.origin_Ay)], [a*(self.origin_Ax+self.La_x), a*(self.origin_Ay+self.La_y)], [a*(self.origin_Ax), a*(self.origin_Ay+self.La_y)] ])
+    #     # for i in range(self.boundary_width, self.L-self.boundary_width):
+    #     #     for j in range(self.boundary_width,self.L-self.boundary_width):
+    #     #         pygame.draw.rect(canvas, (255,255,255), pygame.Rect((a*i, a*j), (width = )a, height = a, fc = 'darkgreen', zorder=5, alpha= (self.reward_grid[i,j]))
+
+
+        
+        
+
+
+    #     return np.transpose(np.array(pygame.surfarray.pixels3d(canvas)), axes=(1,0,2))
+
+
+
 
 
 
     def render(self):
+
+        # if self.render_mode == "rgb_array":
+            # return self._render_frame()
+        
+
 
         fig, ax = plt.subplots(figsize = (10,10))
         a=1/(self.L)
@@ -623,10 +657,18 @@ class Env_Task2(gym.Env):
         ax.set_aspect(1)
         ax.set_xticks([])
         ax.set_yticks([])
+
+
+
+
         plt.axis('off')
         plt.show()
+        # plt.close()
+
 
         #plt.pause(0.1)
+        # return fig
+
 
 
 
@@ -689,36 +731,45 @@ if __name__ == "__main__":
                 "reward_decay": reward_decay
                 }
     
-    env = Env_Task2(settings=settings)
-    model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps = N*max_timesteps*n_episodes)
-    model.save("models/test_task2")
+    video_every=1
 
-    for i in range(20):
-        obs, info = env.reset()
-        env.render()
-        trunc = False
-        while not trunc:
-            action, _ = model.predict(obs)
-            obs, reward, done, trunc, info = env.step(action)
-            env.render()
+    env = Env_Task2(settings=settings, render_mode='rgb_array')
+    # model = PPO("MlpPolicy", env, verb
+    # env = RecordVideo(env, "plots/video")#, episode_trigger = lambda episode_id: (episode_id%video_every)==0)
+    # model.learn(total_timesteps = N*max_timesteps*n_episodes)
+    # model.save("models/test_task2")
+
+    # for i in range(20):
+    #     obs, info = env.reset()
+    #     env.render()
+    #     trunc = False
+    #     while not trunc:
+    #         action, _ = model.predict(obs)
+    #         obs, reward, done, trunc, info = env.step(action)
+    #         env.render()
 
 
 
-    '''
+
     obs_0, info = env.reset()
-    env.render()
-    for i in range(30):
+    img = env.render()
+    plt.imshow(img)
+    plt.show()
+    # episode_id=0
+    for i in range(300):
 
         actions = np.random.randint(0,k_a)
 
         obs_i, reward, done, trunc, info = env.step(actions)
 
-        env.render()
-        if done:
-            print(f"{done=}")
+        img = env.render()
+        plt.imshow(img)
+        plt.show()
+        if trunc:
+            # episode_id+=1
             obs_0, info = env.reset()
+    env.close()
 
-    '''
+
 
     

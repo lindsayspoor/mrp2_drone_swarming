@@ -37,7 +37,7 @@ if __name__ == "__main__":
     boundary_reward = -1
     reward_decay = 0.5
 
-    n_episodes = 2000
+    n_episodes = 100000
     n_steps = 2048
     batch_size = 64
     n_epochs = 10
@@ -72,9 +72,9 @@ if __name__ == "__main__":
     
 
     # Create log dir
-    log_dir = "log_dir/"
+    log_dir = "log_dir_N2/"
     # model_path = f"task2_{n_episodes=}_{N=}_{Rv=}_{n_steps=}_{batch_size=}_{n_epochs=}_{lr=}_{ent_coef=}_{clip_range=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}"
-    model_path = "task2"
+    model_path = "task2_N2"
     os.makedirs(log_dir, exist_ok=True)
 
     env = Env_Task2(settings=settings)
@@ -92,14 +92,3 @@ if __name__ == "__main__":
     plot_log_results(log_dir, model_path)
 
 
-    '''
-    for i in range(20):
-        obs, info = env.reset()
-        env.render()
-        trunc = False
-        while not trunc:
-            action, _ = model.predict(obs)
-            obs, reward, done, trunc, info = env.step(action)
-            env.render()
-
-    '''
