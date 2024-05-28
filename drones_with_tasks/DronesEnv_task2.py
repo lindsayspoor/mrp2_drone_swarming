@@ -217,6 +217,7 @@ class Env_Task2(gym.Env):
 
         drone_grid_indices = np.random.choice(np.arange(self.La_x*self.La_y), size=self.N, replace=False) # randomly choose initial grid locations for all N drones in area A
         # by initialising the drones on the grid positions and setting replace = False, all drones will never be initialised onto the same grid cell
+        
 
         self.drone_directions = np.random.choice(self.direction_angles, size = self.N) # choose random initial directions for all drones
         self.state[:,2] = self.drone_directions
@@ -642,7 +643,7 @@ class Env_Task2(gym.Env):
 
 if __name__ == "__main__":
 
-    N = 3
+    N = 1
     M = N-1
     k_a = 3
     k_s = 4

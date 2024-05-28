@@ -1,4 +1,4 @@
-import numpy as np
+import jax.numpy as np
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
@@ -226,8 +226,13 @@ class Env_Task2(gym.Env):
 
         drone_grid_indices = np.random.choice(np.arange(self.La_x*self.La_y), size=self.N, replace=False) # randomly choose initial grid locations for all N drones in area A
         # by initialising the drones on the grid positions and setting replace = False, all drones will never be initialised onto the same grid cell
+        # drone_grid_indices = [24, 75]
+
 
         self.drone_directions = np.random.choice(self.direction_angles, size = self.N) # choose random initial directions for all drones
+        # self.drone_directions = [self.direction_angles[3]]*self.N
+        # self.drone_directions = [self.direction_angles[0], self.direction_angles[2]]
+        # print(f"{self.drone_directions=}")
         self.state[:,2] = self.drone_directions
 
 
@@ -645,11 +650,11 @@ class Env_Task2(gym.Env):
         # Draw drones on grid
         for i in range(self.N):
                 
-                patch_vision = plt.Circle((a*self.state[i,0], a*self.state[i,1]), self.Rv*a, zorder=9, fc = "darkorchid", alpha=0.1)
+                patch_vision = plt.Circle((a*self.state[i,0]+a/2, a*self.state[i,1]+a/2), self.Rv*a, zorder=9, fc = "darkorchid", alpha=0.1)
                 ax.add_patch(patch_vision)
-                patch_drone = plt.Circle((a*self.state[i,0], a*self.state[i,1]), 0.5*a, fc = 'darkblue', zorder=10)
+                patch_drone = plt.Circle((a*self.state[i,0]+a/2, a*self.state[i,1]+a/2), 0.5*a, fc = 'darkblue', zorder=10)
                 ax.add_patch(patch_drone)
-                patch_drone_dir = plt.arrow(a*self.state[i,0], a*self.state[i,1], a*self.drone_velocities[i,0], a*self.drone_velocities[i,1], color='red', zorder=11)
+                patch_drone_dir = plt.arrow(a*self.state[i,0]+a/2, a*self.state[i,1]+a/2, a*self.drone_velocities[i,0], a*self.drone_velocities[i,1], color='red', zorder=11)
                 ax.add_patch(patch_drone_dir)
 
 
@@ -752,19 +757,17 @@ if __name__ == "__main__":
 
 
     obs_0, info = env.reset()
-    img = env.render()
-    plt.imshow(img)
-    plt.show()
-    # episode_id=0
+    env.render()
+
+
     for i in range(300):
 
         actions = np.random.randint(0,k_a)
 
         obs_i, reward, done, trunc, info = env.step(actions)
 
-        img = env.render()
-        plt.imshow(img)
-        plt.show()
+        env.render()
+
         if trunc:
             # episode_id+=1
             obs_0, info = env.reset()

@@ -32,13 +32,13 @@ if __name__ == "__main__":
     origin_Ay = 1 + boundary_width
     origin_Bx = L - Lb_x - boundary_width - 1
     origin_By = 1 + boundary_width
-    max_timesteps = 100
+    max_timesteps = 300
     step_reward = 0
     goal_reward = 1
     boundary_reward = -1
     reward_decay = 0.5
 
-    n_episodes = 100000
+    n_episodes = 50000
     n_steps = 2048
     batch_size = 64
     n_epochs = 10
@@ -76,8 +76,8 @@ if __name__ == "__main__":
     
 
     # Create log dir
-    log_dir = "log_dir_N2/"
-    model_path = "best_model_task2_N2"
+    log_dir = "log_dir_N1_300maxsteps/"
+    model_path = "best_model_task2_N1_300maxsteps"
     os.makedirs(log_dir, exist_ok=True)
 
     env = Env_Task2(settings=settings)
@@ -112,6 +112,9 @@ if __name__ == "__main__":
     
     mean_reward = np.mean(episode_rewards)
     mean_grid_visits = np.mean(np.array(grid_visits), axis=0)
+
+    print(f"{mean_reward=}")
+
 
 
 

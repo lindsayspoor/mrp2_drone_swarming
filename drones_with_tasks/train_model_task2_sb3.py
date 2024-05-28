@@ -1,4 +1,4 @@
-import numpy as np
+import jax.numpy as np
 from stable_baselines3 import PPO
 from utils import plot_learning_curve, plot_log_results
 from DronesEnv_task2sb3 import Env_Task2
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     boundary_reward = -1
     reward_decay = 0.5
 
-    n_episodes = 100000
+    n_episodes = 50000
     n_steps = 2048
     batch_size = 64
     n_epochs = 10
@@ -72,9 +72,9 @@ if __name__ == "__main__":
     
 
     # Create log dir
-    log_dir = "log_dir_N2/"
+    log_dir = "log_dir_N2_100maxsteps/"
     # model_path = f"task2_{n_episodes=}_{N=}_{Rv=}_{n_steps=}_{batch_size=}_{n_epochs=}_{lr=}_{ent_coef=}_{clip_range=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}"
-    model_path = "task2_N2"
+    model_path = "task2_N2_100maxsteps"
     os.makedirs(log_dir, exist_ok=True)
 
     env = Env_Task2(settings=settings)
@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     model = PPO("MlpPolicy", env, verbose=0, n_steps=n_steps, batch_size=batch_size, n_epochs=n_epochs, learning_rate=lr, ent_coef=ent_coef, clip_range=clip_range)
     model.learn(total_timesteps = N*max_timesteps*n_episodes, callback=auto_save_callback, progress_bar=True)
-    model.save(f"models/pposb3_task2"+model_path)
+    model.save(f"models/pposb3_task2_"+model_path)
 
     # plot_results([log_dir], N*max_timesteps*n_episodes, results_plotter.X_EPISODES, "Test")
     # plt.show()
