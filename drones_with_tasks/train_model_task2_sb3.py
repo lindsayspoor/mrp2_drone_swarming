@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    N = 2
+    N = 1
     M = N-1
     k_a = 3
     k_s = 4
@@ -35,15 +35,18 @@ if __name__ == "__main__":
     step_reward = 0
     goal_reward = 1
     boundary_reward = -1
-    reward_decay = 0.5
-
-    n_episodes = 50000
+    reward_decay = 0.75
+    
+    n_episodes = 80000
     n_steps = 2048
     batch_size = 64
     n_epochs = 10
-    lr = 0.0003
-    ent_coef = 0.0
+    lr = 0.00001
+    ent_coef = 0.001
     clip_range = 0.2
+
+    n_layers=1
+    n_nodes=64
 
 
     settings = {"N": N,
@@ -72,9 +75,9 @@ if __name__ == "__main__":
     
 
     # Create log dir
-    log_dir = "log_dir_N2_100maxsteps/"
-    # model_path = f"task2_{n_episodes=}_{N=}_{Rv=}_{n_steps=}_{batch_size=}_{n_epochs=}_{lr=}_{ent_coef=}_{clip_range=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}"
-    model_path = "task2_N2_100maxsteps"
+    log_dir = f"log_dir_N1_agent3/"
+    model_path = f"task2_{n_episodes=}_{N=}_{n_layers}_{n_nodes}_{Rv=}_{n_steps=}_{batch_size=}_{n_epochs=}_{lr=}_{ent_coef=}_{clip_range=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{reward_decay=}_{k_a=}_{k_l=}_{k_s=}"
+    # model_path = "task2_N1_100maxsteps"
     os.makedirs(log_dir, exist_ok=True)
 
     env = Env_Task2(settings=settings)
@@ -83,7 +86,8 @@ if __name__ == "__main__":
     plotting_callback = PlottingCallback(log_dir=log_dir)
     auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=log_dir, model_path=model_path)
 
-    model = PPO("MlpPolicy", env, verbose=0, n_steps=n_steps, batch_size=batch_size, n_epochs=n_epochs, learning_rate=lr, ent_coef=ent_coef, clip_range=clip_range)
+    model = PPO("MlpPolicy", env, verbose=0, n_steps=n_steps, batch_size=batch_size, n_epochs=n_epochs, learning_rate=lr, ent_coef=ent_coef, clip_range=clip_range, policy_kwargs={"net_arch":dict(pi=[n_nodes]*n_layers, vf=[n_nodes]*n_layers)})
+    print(model.policy)
     model.learn(total_timesteps = N*max_timesteps*n_episodes, callback=auto_save_callback, progress_bar=True)
     model.save(f"models/pposb3_task2_"+model_path)
 

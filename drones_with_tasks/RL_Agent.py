@@ -1,3 +1,4 @@
+#### based on tutorial from philtabor on GitHub ####
 import torch as T
 from ActorCriticNetworks import Actor, Critic
 import numpy as np

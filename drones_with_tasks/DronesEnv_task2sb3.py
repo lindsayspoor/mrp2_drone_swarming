@@ -161,29 +161,6 @@ class Env_Task2(gym.Env):
 
 
 
-    def find_visited_grids(self, i, connected_drones_i):
-        '''Makes an array with all visited grid positions and how many times they are visited, based on the information of
-        the i-th drone and its connected drones.'''
-        # print(f"{i=}")
-        # new_copied_positions_i = np.array(self.state[:,0:2]).copy()
-
-        # print(f"{self.visited_grids=}")
-        # grid_visits_i = self.cast_to_grid(i, new_copied_positions_i)
-        # print(f"{grid_visits_i[0][0]=}")
-        # self.visited_grids[i,int(grid_visits_i[0][0]), int(grid_visits_i[0][1])]+=1
-        # print(f"{self.visited_grids=}")
-        # for j in connected_drones_i:
-            # new_copied_positions_j = np.array(self.state[:,0:2]).copy()
-            # grid_visits_j = self.cast_to_grid(j, new_copied_positions_j)
-            # print(f"{grid_visits_j=}")
-            # self.visited_grids[j,int(grid_visits_j[0][0]), int(grid_visits_j[0][1])]+=1
-        
-        # visited_grids_i = np.sum(self.visited_grids, axis=0)
-            
-        # print(f"{visited_grids_i=}")
-            
-        # return visited_grids_i
-
 
 
 

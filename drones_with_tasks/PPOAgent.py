@@ -1,3 +1,5 @@
+#### based on tutorial from philtabor on GitHub ####
+
 import numpy as np
 import tensorflow as tf
 # from tensorflow import keras

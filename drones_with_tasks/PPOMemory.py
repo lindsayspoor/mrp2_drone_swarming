@@ -1,3 +1,5 @@
+#### based on tutorial from philtabor on GitHub ####
+
 import numpy as np
 
 class PPOReplayBuffer:

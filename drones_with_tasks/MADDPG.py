@@ -1,3 +1,5 @@
+#### based on tutorial from philtabor on GitHub ####
+
 import torch as T
 import torch.nn.functional as F
 from RL_Agent import RLAgent

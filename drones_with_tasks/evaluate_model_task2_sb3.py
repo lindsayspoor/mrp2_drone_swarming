@@ -32,13 +32,13 @@ if __name__ == "__main__":
     origin_Ay = 1 + boundary_width
     origin_Bx = L - Lb_x - boundary_width - 1
     origin_By = 1 + boundary_width
-    max_timesteps = 300
+    max_timesteps = 100
     step_reward = 0
     goal_reward = 1
     boundary_reward = -1
-    reward_decay = 0.5
+    reward_decay = 0.75
 
-    n_episodes = 50000
+    n_episodes = 120000
     n_steps = 2048
     batch_size = 64
     n_epochs = 10
@@ -47,8 +47,7 @@ if __name__ == "__main__":
     clip_range = 0.2
 
     n_eval_episodes = 1000
-    render = False
-
+    render = True
 
     settings = {"N": N,
                 "k_a": k_a,
@@ -76,8 +75,9 @@ if __name__ == "__main__":
     
 
     # Create log dir
-    log_dir = "log_dir_N1_300maxsteps/"
-    model_path = "best_model_task2_N1_300maxsteps"
+    log_dir = f"log_dir_N1/"
+    # model_path = f"task2_{n_episodes=}_{N=}_{Rv=}_{n_steps=}_{batch_size=}_{n_epochs=}_{lr=}_{ent_coef=}_{clip_range=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{reward_decay=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}_2"
+    model_path = "best_model_task2_n_episodes=120000_gr1_brmin1_rd075"
     os.makedirs(log_dir, exist_ok=True)
 
     env = Env_Task2(settings=settings)
@@ -99,7 +99,7 @@ if __name__ == "__main__":
         while not trunc:
             action, _ = model.predict(obs)
             obs, reward, done, trunc, info = env.step(action)
-            if n == N:
+            if n == (N-1):
                 if render:
                     env.render()
                     n = 0
