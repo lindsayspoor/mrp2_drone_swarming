@@ -149,6 +149,87 @@ def plot_clip_range(data1, data2, data3, x, saving_path, filename): #, data001, 
     plt.savefig(f"{saving_path}{filename}.pdf")
     # plt.show()
 
+
+
+def plot_layers(data1, data2, data3, x, saving_path, filename): #, data001, data005,data01,data05, x, saving_path, filename):
+
+    average_learning_curve1 = np.average(data1, axis=0)
+    std_learning_curve1 = np.std(data1, axis=0)
+
+    average_learning_curve1 = moving_average(average_learning_curve1, window=500)
+    std_learning_curve1 = moving_average(std_learning_curve1, window=500)
+
+    average_learning_curve2 = np.average(data2, axis=0)
+    std_learning_curve2 = np.std(data2, axis=0)
+
+    average_learning_curve2 = moving_average(average_learning_curve2, window=500)
+    std_learning_curve2 = moving_average(std_learning_curve2, window=500)
+
+    average_learning_curve3 = np.average(data3, axis=0)
+    std_learning_curve3 = np.std(data3, axis=0)
+
+    average_learning_curve3 = moving_average(average_learning_curve3, window=500)
+    std_learning_curve3 = moving_average(std_learning_curve3, window=500)
+
+    # Truncate x
+    x = x[len(x) - len(average_learning_curve2) :]
+
+    plt.figure(figsize=(10,8))
+    plt.style.use('ggplot')
+    plt.plot(average_learning_curve1, label=r"$64$")
+    plt.fill_between(x, average_learning_curve1-std_learning_curve1, average_learning_curve1+std_learning_curve1, alpha=0.5)
+    plt.plot(average_learning_curve2, label=r"$64\times64$")
+    plt.fill_between(x, average_learning_curve2-std_learning_curve2, average_learning_curve2+std_learning_curve2, alpha=0.5)
+    plt.plot(average_learning_curve3, label=r"$64\times64\times64$")
+    plt.fill_between(x, average_learning_curve3-std_learning_curve3, average_learning_curve3+std_learning_curve3, alpha=0.5)
+    plt.legend(fontsize=21)
+    plt.xlabel("Episode", fontsize=25)
+    plt.ylabel("Reward", fontsize=25)
+    plt.xticks(fontsize=19)
+    plt.yticks(fontsize=19)
+    plt.savefig(f"{saving_path}{filename}.pdf")
+    # plt.show()
+
+
+def plot_nodes(data1, data2, data3, x, saving_path, filename): #, data001, data005,data01,data05, x, saving_path, filename):
+
+    average_learning_curve1 = np.average(data1, axis=0)
+    std_learning_curve1 = np.std(data1, axis=0)
+
+    average_learning_curve1 = moving_average(average_learning_curve1, window=500)
+    std_learning_curve1 = moving_average(std_learning_curve1, window=500)
+
+    average_learning_curve2 = np.average(data2, axis=0)
+    std_learning_curve2 = np.std(data2, axis=0)
+
+    average_learning_curve2 = moving_average(average_learning_curve2, window=500)
+    std_learning_curve2 = moving_average(std_learning_curve2, window=500)
+
+    average_learning_curve3 = np.average(data3, axis=0)
+    std_learning_curve3 = np.std(data3, axis=0)
+
+    average_learning_curve3 = moving_average(average_learning_curve3, window=500)
+    std_learning_curve3 = moving_average(std_learning_curve3, window=500)
+
+    # Truncate x
+    x = x[len(x) - len(average_learning_curve2) :]
+
+    plt.figure(figsize=(10,8))
+    plt.style.use('ggplot')
+    plt.plot(average_learning_curve1, label=r"$32\times32\times32$")
+    plt.fill_between(x, average_learning_curve1-std_learning_curve1, average_learning_curve1+std_learning_curve1, alpha=0.5)
+    plt.plot(average_learning_curve2, label=r"$64\times64\times64$")
+    plt.fill_between(x, average_learning_curve2-std_learning_curve2, average_learning_curve2+std_learning_curve2, alpha=0.5)
+    plt.plot(average_learning_curve3, label=r"$128\times128\times128$")
+    plt.fill_between(x, average_learning_curve3-std_learning_curve3, average_learning_curve3+std_learning_curve3, alpha=0.5)
+    plt.legend(fontsize=21)
+    plt.xlabel("Episode", fontsize=25)
+    plt.ylabel("Reward", fontsize=25)
+    plt.xticks(fontsize=19)
+    plt.yticks(fontsize=19)
+    plt.savefig(f"{saving_path}{filename}.pdf")
+    # plt.show()
+
 def moving_average(values, window):
     """
     Smooth values by doing a moving average
@@ -171,28 +252,29 @@ directory3 = "log_dir_N1_agent3/"
 
 saving_path = "/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/hyperparameters/"
 
-filename_clip1="task2_n_episodes=80000_N=1_Rv=15_n_steps=2048_batch_size=64_n_epochs=10_lr=1e-05_ent_coef=0.001_clip_range=0.1_max_timesteps=100_step_reward=0_goal_reward=1_boundary_reward=-1_reward_decay=0.75_k_a=3_k_l=5_k_s=4_theta_max=1.5707963267948966.csv"
-filename_clip2="task2_n_episodes=80000_N=1_Rv=15_n_steps=2048_batch_size=64_n_epochs=10_lr=1e-05_ent_coef=0.001_clip_range=0.2_max_timesteps=100_step_reward=0_goal_reward=1_boundary_reward=-1_reward_decay=0.75_k_a=3_k_l=5_k_s=4_theta_max=1.5707963267948966.csv"
-filename_clip3="task2_n_episodes=80000_N=1_Rv=15_n_steps=2048_batch_size=64_n_epochs=10_lr=1e-05_ent_coef=0.001_clip_range=0.3_max_timesteps=100_step_reward=0_goal_reward=1_boundary_reward=-1_reward_decay=0.75_k_a=3_k_l=5_k_s=4_theta_max=1.5707963267948966.csv"
+filename_nodes32="task2_n_episodes=80000_N=1_3_32_Rv=15_n_steps=2048_batch_size=64_n_epochs=10_lr=1e-05_ent_coef=0.001_clip_range=0.2_max_timesteps=100_step_reward=0_goal_reward=1_boundary_reward=-1_reward_decay=0.75_k_a=3_k_l=5_k_s=4.csv"
+# filename_layer2="task2_n_episodes=80000_N=1_Rv=15_n_steps=2048_batch_size=64_n_epochs=10_lr=1e-05_ent_coef=0.001_clip_range=0.2_max_timesteps=100_step_reward=0_goal_reward=1_boundary_reward=-1_reward_decay=0.75_k_a=3_k_l=5_k_s=4_theta_max=1.5707963267948966.csv"
+filename_nodes64="task2_n_episodes=80000_N=1_3_64_Rv=15_n_steps=2048_batch_size=64_n_epochs=10_lr=1e-05_ent_coef=0.001_clip_range=0.2_max_timesteps=100_step_reward=0_goal_reward=1_boundary_reward=-1_reward_decay=0.75_k_a=3_k_l=5_k_s=4.csv"
+filename_nodes128="task2_n_episodes=80000_N=1_3_128_Rv=15_n_steps=2048_batch_size=64_n_epochs=10_lr=1e-05_ent_coef=0.001_clip_range=0.2_max_timesteps=100_step_reward=0_goal_reward=1_boundary_reward=-1_reward_decay=0.75_k_a=3_k_l=5_k_s=4.csv"
 
-agent_1_x, agent_1_clip1 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory1}{filename_clip1}")
-agent_2_x, agent_2_clip1 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory2}{filename_clip1}")
-agent_3_x, agent_3_clip1 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory3}{filename_clip1}")
+agent_1_x, agent_1_nodes32 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory1}{filename_nodes32}")
+agent_2_x, agent_2_nodes32 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory2}{filename_nodes32}")
+agent_3_x, agent_3_nodes32 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory3}{filename_nodes32}")
 
-agent_1_x, agent_1_clip2 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory1}{filename_clip2}")
-agent_2_x, agent_2_clip2 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory2}{filename_clip2}")
-agent_3_x, agent_3_clip2 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory3}{filename_clip2}")
+agent_1_x, agent_1_nodes64 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory1}{filename_nodes64}")
+agent_2_x, agent_2_nodes64 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory2}{filename_nodes64}")
+agent_3_x, agent_3_nodes64 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory3}{filename_nodes64}")
 
-agent_1_x, agent_1_clip3 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory1}{filename_clip3}")
-agent_2_x, agent_2_clip3 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory2}{filename_clip3}")
-agent_3_x, agent_3_clip3 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory3}{filename_clip3}")
+agent_1_x, agent_1_nodes128 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory1}{filename_nodes128}")
+agent_2_x, agent_2_nodes128 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory2}{filename_nodes128}")
+agent_3_x, agent_3_nodes128 = np.loadtxt(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/{directory3}{filename_nodes128}")
 
-data_clip1 = np.array([agent_1_clip1, agent_2_clip1, agent_3_clip1])
-data_clip2 = np.array([agent_1_clip2, agent_2_clip2, agent_3_clip2])
-data_clip3 = np.array([agent_1_clip3, agent_2_clip3, agent_3_clip3])
-
-
-filename_save_clip = "clip_range_exploration_task_N1"
+data_nodes32 = np.array([agent_1_nodes32, agent_2_nodes32, agent_3_nodes32])
+data_nodes64 = np.array([agent_1_nodes64, agent_2_nodes64, agent_3_nodes64])
+data_nodes128= np.array([agent_1_nodes128, agent_2_nodes128, agent_3_nodes128])
 
 
-plot_clip_range(data_clip1, data_clip2, data_clip3, agent_1_x, saving_path, filename_save_clip)
+filename_save_nodes = "nodes_exploration_task_N1"
+
+
+plot_nodes(data_nodes32, data_nodes64, data_nodes128, agent_1_x, saving_path, filename_save_nodes)

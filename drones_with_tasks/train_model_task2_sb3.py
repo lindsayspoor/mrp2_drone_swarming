@@ -45,8 +45,8 @@ if __name__ == "__main__":
     ent_coef = 0.001
     clip_range = 0.2
 
-    n_layers=1
-    n_nodes=64
+    n_layers=3
+    n_nodes=128
 
 
     settings = {"N": N,
