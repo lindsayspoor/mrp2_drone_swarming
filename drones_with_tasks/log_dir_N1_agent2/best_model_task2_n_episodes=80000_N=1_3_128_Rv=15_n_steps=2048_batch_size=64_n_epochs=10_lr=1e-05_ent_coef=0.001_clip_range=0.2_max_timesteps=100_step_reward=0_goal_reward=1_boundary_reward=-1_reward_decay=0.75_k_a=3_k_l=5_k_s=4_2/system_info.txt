@@ -1,0 +1,9 @@
+- OS: macOS-12.6.7-x86_64-i386-64bit Darwin Kernel Version 21.6.0: Thu Jun  8 23:57:12 PDT 2023; root:xnu-8020.240.18.701.6~1/RELEASE_X86_64
+- Python: 3.11.5
+- Stable-Baselines3: 2.1.0
+- PyTorch: 2.2.2
+- GPU Enabled: False
+- Numpy: 1.25.2
+- Cloudpickle: 2.2.1
+- Gymnasium: 0.29.1
+- OpenAI Gym: 0.26.2

@@ -1,11 +1,11 @@
 import jax.numpy as np
 from stable_baselines3 import PPO
-from utils import plot_learning_curve, plot_log_results
+from utils import plot_learning_curve, plot_log_results, plot_order_param_training
 from DronesEnv_task3sb3 import Env_Task3
 from tqdm import tqdm
 import os
 from stable_baselines3.common.monitor import Monitor
-from CallbackClass import PlottingCallback, SaveOnBestTrainingRewardCallback
+from CallbackClass import PlottingCallback, SaveOnBestTrainingRewardCallbackTask3
 from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.results_plotter import load_results, ts2xy, plot_results
 from stable_baselines3.common import results_plotter
@@ -21,14 +21,14 @@ if __name__ == "__main__":
     k_l = 5
     theta_max  = np.pi /2
     boundary_width = 1
-    Rv = 4
-    L = 12 + (2 * boundary_width)
-    La_x = 10
-    La_y = 10
-    Lb_x = 10
-    Lb_y = 10
-    origin_Ax = 1 + boundary_width
-    origin_Ay = 1 + boundary_width
+    Rv = 150
+    L = 100 + (2 * boundary_width)
+    La_x = 50
+    La_y = 50
+    Lb_x = 50
+    Lb_y = 50
+    origin_Ax = 25 + boundary_width
+    origin_Ay = 25 + boundary_width
     origin_Bx = L - Lb_x - boundary_width - 1
     origin_By = 1 + boundary_width
     max_timesteps = 100
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     reward_swarm = -1
 
     
-    n_episodes = 5000
+    n_episodes = 1000
     n_steps = 2048
     batch_size = 64
     n_epochs = 10
@@ -70,6 +70,8 @@ if __name__ == "__main__":
 
     # Create log dir
     log_dir = f"log_dir_N4/"
+    check_freq = 1000
+    order_param_check = 10000
     model_path = f"task3_{n_episodes=}_{N=}_{Rv=}_{n_steps=}_{batch_size=}_{n_epochs=}_{lr=}_{ent_coef=}_{clip_range=}_{max_timesteps=}_{boundary_reward=}_{reward_swarm=}_{k_a=}_{k_l=}_{k_s=}_{theta_max=}"
     # model_path = "task2_N1_100maxsteps"
     os.makedirs(log_dir, exist_ok=True)
@@ -78,7 +80,7 @@ if __name__ == "__main__":
     env = Monitor(env, log_dir)
 
     plotting_callback = PlottingCallback(log_dir=log_dir)
-    auto_save_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=log_dir, model_path=model_path)
+    auto_save_callback = SaveOnBestTrainingRewardCallbackTask3(check_freq=check_freq, order_param_check=order_param_check,log_dir=log_dir, env = env, N=N, model_path=model_path)
 
     model = PPO("MlpPolicy", env, verbose=0, n_steps=n_steps, batch_size=batch_size, n_epochs=n_epochs, learning_rate=lr, ent_coef=ent_coef, clip_range=clip_range)
     model.learn(total_timesteps = N*max_timesteps*n_episodes, callback=auto_save_callback, progress_bar=True)
@@ -87,5 +89,7 @@ if __name__ == "__main__":
     # plot_results([log_dir], N*max_timesteps*n_episodes, results_plotter.X_EPISODES, "Test")
     # plt.show()
     plot_log_results(log_dir, model_path)
+
+    plot_order_param_training(log_dir, model_path, auto_save_callback.save_order_param_path, check_freq)
 
 

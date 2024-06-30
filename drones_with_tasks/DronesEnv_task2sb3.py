@@ -196,8 +196,6 @@ class Env_Task2(gym.Env):
         self.grid_A_positions = [[i,j] for i in range(self.origin_Ax, self.origin_Ax+self.La_x) for j in range(self.origin_Ay, self.origin_Ay+self.La_y)] # define area A on grid
         self.grid_B_positions = [[i,j] for i in range(self.origin_Bx, self.origin_Bx+self.Lb_x) for j in range(self.origin_By, self.origin_By+self.Lb_y)] # define area B on grid
 
-
-
     def initialize_drones(self):
         '''Initialize drone positions within area A.'''
 
@@ -242,8 +240,9 @@ class Env_Task2(gym.Env):
         for i in range(self.boundary_width, self.L - self.boundary_width):
             self.reward_grid[i,:] = self.step_reward
 
-        self.reward_grid[self.grid_B_positions[0][0]:(self.grid_B_positions[-1][0]+1), self.grid_B_positions[0][1]:(self.grid_B_positions[-1][1]+1)] = self.goal_reward
-
+        # self.reward_grid[self.grid_B_positions[0][0]:(self.grid_B_positions[-1][0]+1), self.grid_B_positions[0][1]:(self.grid_B_positions[-1][1]+1)] = self.goal_reward
+        for x, y in self.grid_B_positions:
+            self.reward_grid[x][y] = self.goal_reward
 
 
 
@@ -323,16 +322,15 @@ class Env_Task2(gym.Env):
         old_copied_positions = np.array(old_positions).copy()
         new_copied_positions = np.array(new_positions).copy()
 
-        # print(f"{new_copied_positions=}")
+
         reward_positions = self.cast_to_grid(i, new_copied_positions)
-        # print(f"{reward_positions=}")
+
         reward_i = self.reward_grid[int(reward_positions[i,0]), int(reward_positions[i,1])]
         self.grid_visits[int(reward_positions[i,1]), int(reward_positions[i,0])] +=1
         if reward_i != 0:
-            self.reward_grid[int(reward_positions[i,0]), int(reward_positions[i,1])] *= self.reward_decay#0.5#= 0 # *= 0.8
+            self.reward_grid[int(reward_positions[i,0]), int(reward_positions[i,1])] *= self.reward_decay
 
-        
-
+    
 
         enter_leaving_reward_i = self.enter_leaving(i, old_copied_positions, new_positions)
 
@@ -346,7 +344,7 @@ class Env_Task2(gym.Env):
 
     def cast_to_grid(self, i, positions):
         '''Casts i-th drone position to grid.'''
-        positions[i,0] = positions[i,0] - (positions[i,0] % 1)
+        positions[i,0] = positions[i,0] - (positions[i,0] % 1) # floor
         positions[i,1] = positions[i,1] - (positions[i,1] % 1)
 
         return positions
@@ -426,9 +424,6 @@ class Env_Task2(gym.Env):
 
     def update_drone_velocities(self, i, angle):
         '''Update the velocities of the i-th drone given the rotation angle.'''
-
-
-
 
         new_drone_velocities = np.zeros((2))
 
@@ -627,8 +622,8 @@ class Env_Task2(gym.Env):
         # Draw drones on grid
         for i in range(self.N):
                 
-                patch_vision = plt.Circle((a*self.state[i,0]+a/2, a*self.state[i,1]+a/2), self.Rv*a, zorder=9, fc = "darkorchid", alpha=0.1)
-                ax.add_patch(patch_vision)
+                # patch_vision = plt.Circle((a*self.state[i,0]+a/2, a*self.state[i,1]+a/2), self.Rv*a, zorder=9, fc = "darkorchid", alpha=0.1)
+                # ax.add_patch(patch_vision)
                 patch_drone = plt.Circle((a*self.state[i,0]+a/2, a*self.state[i,1]+a/2), 0.5*a, fc = 'darkblue', zorder=10)
                 ax.add_patch(patch_drone)
                 patch_drone_dir = plt.arrow(a*self.state[i,0]+a/2, a*self.state[i,1]+a/2, a*self.drone_velocities[i,0], a*self.drone_velocities[i,1], color='red', zorder=11)
@@ -644,6 +639,7 @@ class Env_Task2(gym.Env):
 
 
         plt.axis('off')
+        # plt.savefig(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/plots/render_plots/render_{self.N=}_{self.counter=}.pdf")
         plt.show()
         # plt.close()
 
@@ -678,7 +674,7 @@ if __name__ == "__main__":
     Lb_y = 10
     origin_Ax = 1 + boundary_width
     origin_Ay = 1 + boundary_width
-    origin_Bx = L - Lb_x - boundary_width - 1
+    origin_Bx = 1 + boundary_width # L - Lb_x - boundary_width - 1
     origin_By = 1 + boundary_width
     max_timesteps = 100
     step_reward = 0
@@ -716,20 +712,6 @@ if __name__ == "__main__":
     video_every=1
 
     env = Env_Task2(settings=settings, render_mode='rgb_array')
-    # model = PPO("MlpPolicy", env, verb
-    # env = RecordVideo(env, "plots/video")#, episode_trigger = lambda episode_id: (episode_id%video_every)==0)
-    # model.learn(total_timesteps = N*max_timesteps*n_episodes)
-    # model.save("models/test_task2")
-
-    # for i in range(20):
-    #     obs, info = env.reset()
-    #     env.render()
-    #     trunc = False
-    #     while not trunc:
-    #         action, _ = model.predict(obs)
-    #         obs, reward, done, trunc, info = env.step(action)
-    #         env.render()
-
 
 
 

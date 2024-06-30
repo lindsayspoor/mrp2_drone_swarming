@@ -52,5 +52,23 @@ def plot_log_results(log_folder,  save_model_path, title="Average training rewar
     plt.savefig(f'{log_folder}{save_model_path}.pdf')
 
 
+def plot_order_param_training(log_folder, save_model_path, file_path, check_freq):
+
+    '''Plots the order parameter during training'''
+
+    order_params = np.loadtxt(file_path)
+
+    plt.figure(figsize=(10,8))
+    plt.style.use('ggplot')
+    plt.plot(np.arange(len(order_params))*check_freq, order_params)
+    plt.xlabel("Timestep", fontsize=25)
+    plt.ylabel(f"$\Phi$", fontsize=25)
+    plt.xticks(fontsize=17)
+    plt.yticks(fontsize=19)
+    plt.savefig(f"{log_folder}order_param_{save_model_path}.pdf")
+
+
+
+
 
 

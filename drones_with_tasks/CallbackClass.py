@@ -73,6 +73,109 @@ class CustomCallbackPPO(BaseCallback):
         pass
 
 
+class SaveOnBestTrainingRewardCallbackTask3(BaseCallback):
+    """
+    Callback for saving a model (the check is done every ``check_freq`` steps)
+    based on the training reward (in practice, we recommend using ``EvalCallback``).
+
+    :param check_freq: (int)
+    :param log_dir: (str) Path to the folder where the model will be saved.
+      It must contains the file created by the ``Monitor`` wrapper.
+    :param verbose: (int)
+    """
+
+    def __init__(self, check_freq, order_param_check, log_dir, env, model_path, N, verbose=1):
+        super().__init__(verbose)
+        self.check_freq = check_freq
+        self.log_dir = log_dir
+        self.save_path = os.path.join(log_dir, f"best_model_"+model_path)
+        self.save_order_param_path = os.path.join(log_dir, f"order_param_training_"+str(model_path)+".csv")
+        self.best_mean_reward = -np.inf
+        self.env= env
+        self.N=N
+        self.order_param_check=order_param_check
+
+        open(self.save_order_param_path, 'w').close()
+
+    def _init_callback(self) -> None:
+        # Create folder if needed
+        if self.save_path is not None:
+            os.makedirs(self.save_path, exist_ok=True)
+
+    def _on_rollout_start(self) -> None:
+        """
+        A rollout is the collection of environment interaction
+        using the current policy.
+        This event is triggered before collecting new samples.
+        """
+        pass
+
+
+    def _on_step(self) -> bool:
+        if self.n_calls % self.check_freq == 0:
+
+            # Retrieve training reward
+            x, y = ts2xy(load_results(self.log_dir), "timesteps")
+            if len(x) > 0:
+                # Mean training reward over the last 100 episodes
+                mean_reward = np.mean(y[-100:])
+                if self.verbose > 0:
+                    print("Num timesteps: {}".format(self.num_timesteps))
+                    print(
+                        "Best mean reward: {:.2f} - Last mean reward per episode: {:.2f}".format(
+                            self.best_mean_reward, mean_reward
+                        )
+                    )
+
+                # New best model, you could save the agent here
+                if mean_reward > self.best_mean_reward:
+                    self.best_mean_reward = mean_reward
+                    # Example for saving best model
+                    if self.verbose > 0:
+                        print("Saving new best model at {} timesteps".format(x[-1]))
+                        print("Saving new best model to {}.zip".format(self.save_path))
+                    self.model.save(self.save_path)
+
+            
+        if self.n_calls % self.order_param_check==0:
+
+            order_params=[]
+            for i in range(50):
+
+                obs, info = self.env.reset()
+                done = False
+                trunc = False
+                n = 0
+                episode_reward = 0
+                
+                while not trunc:
+                    action, _ = self.model.predict(obs)
+                    obs, reward, done, trunc, info = self.env.step(action)
+                    if n == (self.N-1):
+                        n = 0
+                        episode_reward += reward
+                    else:
+                        n +=1
+                order_params.append(self.env.order_param)
+
+            mean_order_param=np.mean(order_params)
+
+            print(f"{mean_order_param=}")
+            # print(f"{episode_reward=}")
+            # np.savetxt(self.save_order_param_path, self.env.order_param)
+            with open(self.save_order_param_path, "ab") as f:
+                np.savetxt(f, np.array([mean_order_param]))
+
+            obs, info = self.env.reset()
+
+            # print(f"{self.env.order_param=}")
+            # np.savetxt(self.save_order_param_path, self.env.order_param)
+            # with open(self.save_order_param_path, "ab") as f:
+                # np.savetxt(f, np.array([self.env.order_param]))
+            
+
+        return True
+
 class SaveOnBestTrainingRewardCallback(BaseCallback):
     """
     Callback for saving a model (the check is done every ``check_freq`` steps)

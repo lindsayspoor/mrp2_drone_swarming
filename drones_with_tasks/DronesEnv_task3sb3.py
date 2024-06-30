@@ -62,6 +62,8 @@ class Env_Task3(gym.Env):
         self.done = False
         self.truncated = False
         self.collective_reward = 0
+        self.rate_loss_neighbors = 0
+        self.order_param = 0
 
         self.action_space = spaces.Discrete(self.k_a) # for all N drones, k_a possible action angles to choose from
         self.actions_all = np.zeros((self.N))
@@ -104,6 +106,8 @@ class Env_Task3(gym.Env):
         self.truncated = False
         self.counter = 0
         self.collective_reward = 0
+        self.rate_loss_neighbors = 0
+        self.order_param = 0
 
 
         self.initialize_drones()
@@ -245,7 +249,7 @@ class Env_Task3(gym.Env):
             self.drone_velocities[i,:] = self.compute_velocities(self.drone_directions[i]) # compute the initial velocity vector for all drones based on the given direction angle
 
 
-
+        self.update_order_parameter()
 
 
 
@@ -400,6 +404,14 @@ class Env_Task3(gym.Env):
 
 
 
+    def update_order_parameter(self):
+        '''Computes the order parameter of the entire system.'''
+
+        # self.order_param = np.abs(np.sum(np.sqrt(self.drone_velocities[:,0]**2+self.drone_velocities[:,1]**2)))/self.N
+
+        self.order_param = np.sqrt(np.sum(self.drone_velocities[:,0])**2+np.sum(self.drone_velocities[:,1])**2)/self.N
+
+
 
     def find_connected_drones(self, i, positions):
         '''For the i-th drone find the other drones that are within the connectivity range Rv.'''
@@ -447,6 +459,12 @@ class Env_Task3(gym.Env):
 
 
         return swarming_reward_i
+    
+    def order_param_reward(self):
+
+        self.update_order_parameter()
+
+        return self.order_param
 
 
     def get_rewards(self, boundary_rewards):
@@ -457,21 +475,26 @@ class Env_Task3(gym.Env):
         new_positions = self.state[:,0:2].copy()
         old_positions = self.old_state[:,0:2].copy()
 
+        rate_loss_neighbors = []
 
         for i in range(self.N):
 
 
             swarming_reward_i = self.swarming_rewards(i, new_positions, old_positions)
+            order_param_reward_i = self.order_param_reward()
 
             collision_reward_i = self.collision_rewards(i, new_positions)
 
 
 
-            reward_i = swarming_reward_i + collision_reward_i + boundary_rewards[i] 
-
+            # reward_i = swarming_reward_i + collision_reward_i + boundary_rewards[i] 
+            reward_i = order_param_reward_i + collision_reward_i #+ boundary_rewards[i] 
 
             reward_N.append(reward_i)
 
+            rate_loss_neighbors.append(swarming_reward_i)
+
+        self.rate_loss_neighbors = np.sum(np.array(rate_loss_neighbors)/self.reward_swarm)/self.N
 
         return reward_N
 
@@ -510,8 +533,10 @@ class Env_Task3(gym.Env):
 
             reward_N = self.get_rewards(boundary_rewards)
 
+            self.update_order_parameter()
 
-            collective_reward  = np.sum(reward_N)
+
+            collective_reward  = np.sum(reward_N)/self.N
 
             self.counter+=1
             if self.counter == self.max_timesteps:
@@ -563,8 +588,8 @@ class Env_Task3(gym.Env):
         # Draw drones on grid
         for i in range(self.N):
                 
-                patch_vision = plt.Circle((a*self.state[i,0]+a/2, a*self.state[i,1]+a/2), self.Rv*a, zorder=9, fc = "darkorchid", alpha=0.1)
-                ax.add_patch(patch_vision)
+                # patch_vision = plt.Circle((a*self.state[i,0]+a/2, a*self.state[i,1]+a/2), self.Rv*a, zorder=9, fc = "darkorchid", alpha=0.1)
+                # ax.add_patch(patch_vision)
                 patch_drone = plt.Circle((a*self.state[i,0]+a/2, a*self.state[i,1]+a/2), 0.5*a, fc = 'darkblue', zorder=10)
                 ax.add_patch(patch_drone)
                 patch_drone_dir = plt.arrow(a*self.state[i,0]+a/2, a*self.state[i,1]+a/2, a*self.drone_velocities[i,0], a*self.drone_velocities[i,1], color='red', zorder=11)
@@ -580,7 +605,10 @@ class Env_Task3(gym.Env):
 
 
         plt.axis('off')
-        plt.show()
+        plt.savefig(f"/Users/lindsayspoor/Library/Mobile Documents/com~apple~CloudDocs/Documents/Studiedocumenten/2023-2024/MSc Research Project 2/Code/mrp2_drone_swarming/drones_with_tasks/plots/render_plots/render_{self.N=}_{self.counter=}.pdf")
+        # plt.show()
+        plt.close()
+
 
 
 
@@ -594,21 +622,21 @@ class Env_Task3(gym.Env):
 
 if __name__ == "__main__":
 
-    N = 4
+    N = 8
     M = N-1
     k_a = 3
     k_s = 4
     k_l = 5
     theta_max  = np.pi /2
     boundary_width = 1
-    Rv = 4
-    L = 12 + (2 * boundary_width)
-    La_x = 10
-    La_y = 10
-    Lb_x = 10
-    Lb_y = 10
-    origin_Ax = 1 + boundary_width
-    origin_Ay = 1 + boundary_width
+    Rv = 150
+    L = 100 + (2 * boundary_width)
+    La_x = 50
+    La_y = 50
+    Lb_x = 50
+    Lb_y = 50
+    origin_Ax = 25 + boundary_width
+    origin_Ay = 25 + boundary_width
     origin_Bx = L - Lb_x - boundary_width - 1
     origin_By = 1 + boundary_width
     max_timesteps = 100
@@ -640,21 +668,28 @@ if __name__ == "__main__":
                 "reward_swarm": reward_swarm
                 }
     
-    video_every=1
+
 
     env = Env_Task3(settings=settings, render_mode='rgb_array')
 
 
     obs_0, info = env.reset()
+    
+    print(f"{env.order_param=}")
+    # print(f"{env.drone_velocities=}")
+
     env.render()
 
 
     for i in range(300):
 
-        actions = np.random.randint(0,k_a)
+        action = np.random.randint(0,k_a)
+        print(f"{action=}")
 
-        obs_i, reward, done, trunc, info = env.step(actions)
+        obs_i, reward, done, trunc, info = env.step(action)
         print(f"{reward=}")
+        # print(f"{env.drone_velocities=}")
+        print(f"{env.order_param=}")
 
         env.render()
 
