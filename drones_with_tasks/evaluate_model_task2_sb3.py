@@ -49,8 +49,8 @@ if __name__ == "__main__":
     n_layers=3
     n_nodes=128
 
-    n_eval_episodes = 1
-    render = True
+    n_eval_episodes = 1000
+    render = False
 
     settings = {"N": N,
                 "k_a": k_a,
@@ -78,10 +78,15 @@ if __name__ == "__main__":
     
 
     # Create log dir
-    log_dir = f"log_dir_N1_agent3/"
+    log_dir = f"log_dir_N1_agent1/"
     # model_path = f"best_model_task2_n_episodes=80000_N=1_3_128_Rv=15_n_steps=2048_batch_size=64_n_epochs=10_lr=1e-05_ent_coef=0.001_clip_range=0.2_max_timesteps=100_step_reward=0_goal_reward=1_boundary_reward=-1_reward_decay=0.75_k_a=3_k_l=5_k_s=4_2"
     model_path = f"best_model_task2_{n_episodes=}_{N=}_{n_layers}_{n_nodes}_{Rv=}_{n_steps=}_{batch_size=}_{n_epochs=}_{lr=}_{ent_coef=}_{clip_range=}_{max_timesteps=}_{step_reward=}_{goal_reward=}_{boundary_reward=}_{reward_decay=}_{k_a=}_{k_l=}_{k_s=}_2"
     os.makedirs(log_dir, exist_ok=True)
+
+    N_eval = 4
+    max_timesteps_eval = 100
+    settings['N'] = N_eval
+    settings['max_timesteps'] = max_timesteps_eval
 
     env = Env_Task2(settings=settings)
    

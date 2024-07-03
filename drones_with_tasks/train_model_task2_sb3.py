@@ -38,15 +38,15 @@ if __name__ == "__main__":
     reward_decay = 0.75
     
     n_episodes = 40000
-    n_steps = 20
-    batch_size = 5
-    n_epochs = 4
+    n_steps = 2048
+    batch_size = 64
+    n_epochs = 10
     lr = 0.00001
     ent_coef = 0.001
     clip_range = 0.2
 
     n_layers=3
-    n_nodes=64
+    n_nodes=128
 
 
     settings = {"N": N,
